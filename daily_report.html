@@ -71,11 +71,11 @@
     <select id="condition" onchange="toggleNoteField()">
       <option value="好調">好調</option>
       <option value="普通">普通</option>
-      <option value="不良">不良</option>
+      <option value="不調">不調</option>
     </select><br><br>
 
     <div id="noteField" style="display:none">
-      <label for="note">備考（体調が不良の場合）:</label>
+      <label for="note">備考（体調が不調の場合）:</label>
       <input type="text" id="note"><br><br>
     </div>
 
@@ -107,7 +107,7 @@
 
     function toggleNoteField() {
       const condition = document.getElementById('condition').value;
-      document.getElementById('noteField').style.display = condition === '不良' ? 'block' : 'none';
+      document.getElementById('noteField').style.display = condition === '不調' ? 'block' : 'none';
     }
 
     window.addTaskEntry = function () {
