@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>日報記録</title>
+
+  <!-- Firebase 初期化（sheets_integration.jsより前に） -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC_ZkD7YXmyfmAYvLuFm_3AC1Le_KlMlSg",
+      authDomain: "log-ndailyreportpass.firebaseapp.com",
+      projectId: "log-ndailyreportpass",
+      storageBucket: "log-ndailyreportpass.appspot.com",
+      messagingSenderId: "1024080463078",
+      appId: "1:1024080463078:web:12315db475df67d5f32727",
+      measurementId: "G-GF8QKM2PY1"
+    };
+
+    initializeApp(firebaseConfig);
+  </script>
+
+  <!-- Firebase連携モジュール（Firebase初期化後に読み込む） -->
+  <script type="module" src="sheets_integration.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background-color: #f4f4f4;
+    }
+    .form-section {
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .task-entry {
+      margin-bottom: 10px;
+      padding: 10px;
+      border: 1px dashed #ccc;
+      border-radius: 5px;
+    }
+    button {
+      margin: 10px 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="form-section">
+    <h2>日報入力フォーム</h2>
+
+    <label for="breakTime">休憩時間（時間単位）:</label>
+    <input list="breakOptions" id="breakTime" />
+    <datalist id="breakOptions">
+      <option value="0">
+      <option value="0.5">
+      <option value="1">
+      <option value="1.5">
+      <option value="2">
+      <option value="2.5">
+      <option value="3">
+      <option value="3.5">
+      <option value="4">
+    </datalist><br><br>
+
+    <label for="condition">体調:</label>
+    <select id="condition" onchange="toggleNoteField()">
+      <option value="好調">好調</option>
+      <option value="普通">普通</option>
+      <option value="不良">不良</option>
+    </select><br><br>
+
+    <div id="noteField" style="display:none">
+      <label for="note">備考（体調が不良の場合）:</label>
+      <input type="text" id="note"><br><br>
+    </div>
+
+    <h3>作業詳細</h3>
+    <div id="taskContainer"></div>
+    <button type="button" onclick="addTaskEntry()">＋ 作業を追加</button><br><br>
+
+    <div>
+      <label>実働時間:</label>
+      <span id="workingTime">--</span>
+    </div><br>
+
+    <button onclick="submitStartReport()">出勤送信</button>
+    <button onclick="submitEndReport()">退勤送信</button>
+  </div>
+
+  <script type="module">
+    import { getUserEmail, sendToSpreadsheet } from './sheets_integration.js';
+
+    function formatTime(date) {
+      const h = date.getHours();
+      const m = date.getMinutes();
+      return `${h}時${m.toString().padStart(2, '0')}分`;
+    }
+
+    function formatDate(date) {
+      return `${date.getFullYear()}年${(date.getMonth()+1).toString().padStart(2, '0')}月${date.getDate().toString().padStart(2, '0')}日`;
+    }
+
+    function toggleNoteField() {
+      const condition = document.getElementById('condition').value;
+      document.getElementById('noteField').style.display = condition === '不良' ? 'block' : 'none';
+    }
+
+    window.addTaskEntry = function () {
+      const container = document.getElementById('taskContainer');
+      const div = document.createElement('div');
+      div.className = 'task-entry';
+      div.innerHTML = `
+        <label>案件名:</label>
+        <input type="text" name="project"><br>
+        <label>作業内容:</label>
+        <input type="text" name="task">
+      `;
+      container.appendChild(div);
+    };
+
+    window.submitStartReport = () => {
+      const breakValue = document.getElementById('breakTime').value;
+      const condition = document.getElementById('condition').value;
+      const note = document.getElementById('note').value;
+      const tasks = document.querySelectorAll('#taskContainer input');
+      const isTasksFilled = Array.from(tasks).some(el => el.value.trim() !== '');
+
+      if (breakValue || condition !== '好調' || note || isTasksFilled) {
+        alert('出勤打刻は空の状態でのみ送信できます。すべての入力をクリアしてください。');
+        return;
+      }
+
+      const now = new Date();
+      getUserEmail(email => {
+        sendToSpreadsheet(email, 'start', formatTime(now), formatDate(now), 0);
+        document.body.innerHTML = '<h2>出勤打刻完了</h2>';
+      });
+    };
+
+    window.submitEndReport = () => {
+      const now = new Date();
+      const breakTime = parseFloat(document.getElementById('breakTime').value);
+      getUserEmail(email => {
+        sendToSpreadsheet(email, 'end', formatTime(now), formatDate(now), breakTime);
+        document.body.innerHTML = '<h2>退勤打刻完了。お疲れさまでした！</h2>';
+      });
+    };
+  </script>
+</body>
+</html>

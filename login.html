@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log-!N 日報システム サインイン</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f4f4f4;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .login-box {
+      background-color: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+    input {
+      margin: 10px 0;
+      padding: 8px;
+      width: 100%;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <h2>ログイン</h2>
+    <!-- メールアドレス入力欄 -->
+    <input type="email" id="loginEmail" placeholder="メールアドレス" />
+    <!-- パスワード入力欄 -->
+    <input type="password" id="loginPass" placeholder="パスワード" />
+    <!-- ログインボタン -->
+    <button onclick="login()">ログイン</button>
+    <!-- エラーメッセージ表示欄 -->
+    <p id="errorMsg" style="color: red;"></p>
+  </div>
+
+  <!-- Firebase SDK の読み込みとログイン処理 -->
+  <script type="module">
+    // Firebaseライブラリ読み込み
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-analytics.js";
+
+    // Firebase プロジェクトの設定情報（※この情報は公開OK）
+    const firebaseConfig = {
+      apiKey: "AIzaSyC_ZkD7YXmyfmAYvLuFm_3AC1Le_KlMlSg",
+      authDomain: "log-ndailyreportpass.firebaseapp.com",
+      projectId: "log-ndailyreportpass",
+      storageBucket: "log-ndailyreportpass.firebasestorage.app",
+      messagingSenderId: "1024080463078",
+      appId: "1:1024080463078:web:12315db475df67d5f32727",
+      measurementId: "G-GF8QKM2PY1"
+    };
+
+    // Firebase 初期化
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const analytics = getAnalytics(app);
+
+    // ログイン処理
+    window.login = function login() {
+      const email = document.getElementById("loginEmail").value;
+      const password = document.getElementById("loginPass").value;
+      const errorMsg = document.getElementById("errorMsg");
+
+      // Firebase Auth で認証
+      signInWithEmailAndPassword(auth, email, password)
+        .then(() => {
+          sessionStorage.setItem("loggedIn", "true"); // ログイン状態をセッションに記録
+          window.location.href = "daily_report.html"; // 日報画面へ遷移
+        })
+        .catch((error) => {
+          errorMsg.textContent = "ログインに失敗しました: " + error.message;
+        });
+    };
+  </script>
+</body>
+</html>
