@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>日報記録一覧</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f9f9f9;
+      padding: 20px;
+    }
+    .record {
+      background: white;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    .date {
+      font-weight: bold;
+    }
+    .edited {
+      font-size: 0.8em;
+      color: red;
+      cursor: pointer;
+    }
+    .edit-history {
+      font-size: 0.8em;
+      background: #f4f4f4;
+      padding: 8px;
+      margin-top: 5px;
+      display: none;
+    }
+    .missing-end {
+      color: orange;
+      font-weight: bold;
+    }
+    a {
+      text-decoration: none;
+      color: #007BFF;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  <h2>日報記録一覧　<a href="daily_report.html">← 日報入力に戻る</a></h2>
+  <div id="recordList"></div>
+
+  <script>
+    function loadRecords() {
+      const list = document.getElementById("recordList");
+      list.innerHTML = "";
+
+      const keys = Object.keys(localStorage).filter(k => k.startsWith("dailyreport-")).sort().reverse();
+      keys.forEach(key => {
+        const raw = localStorage.getItem(key);
+        if (!raw) return;
+        const record = JSON.parse(raw);
+
+        const div = document.createElement("div");
+        div.className = "record";
+
+        const edited = record.edited ? `<span class=\"edited\" onclick=\"toggleEditHistory(this)\">(編集済み)</span>` : "";
+        const editHistory = record.editHistory ? `<div class='edit-history'>${record.editHistory.map(h => `変更前: ${h}`).join("<br>")}</div>` : "";
+
+        div.innerHTML = `
+          <div class=\"date\">${record.date} ${edited}</div>
+          <div>出勤: ${record.start || "--"}</div>
+          <div>退勤: ${record.end || "<span class='missing-end'>未退勤</span>"}</div>
+          <div>休憩: ${record.break || "--"}時間</div>
+          <div>体調: ${record.condition || "--"}</div>
+          ${record.tasks ? record.tasks.map(t => `<div>・${t.project} / ${t.detail} / ${t.duration}h</div>`).join("") : ""}
+          ${editHistory}
+        `;
+
+        list.appendChild(div);
+      });
+    }
+
+    function toggleEditHistory(el) {
+      const box = el.nextElementSibling;
+      if (box) box.style.display = box.style.display === "none" ? "block" : "none";
+    }
+
+    window.onload = loadRecords;
+  </script>
+</body>
+</html>
