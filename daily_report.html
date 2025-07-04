@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>日報記録</title>
   <style>
     body {
@@ -164,7 +164,8 @@
       if (hasError) return;
 
       if (Math.abs(totalTaskTime - workingHours) > 0.1) {
-        document.getElementById('workingTimeError').textContent = `作業合計({totalTaskTime.toFixed(2)}h)と実働({workingHours.toFixed(2)}h)が一致しません。`;
+        document.getElementById('workingTimeError').textContent =
+          `作業合計(${totalTaskTime.toFixed(2)}h)と実働(${workingHours.toFixed(2)}h)が一致しません。`;
         document.getElementById('workingTimeError').style.display = "block";
         return;
       }
@@ -175,16 +176,6 @@
       record.break = breakTime;
       record.condition = condition;
       record.note = document.getElementById('note').value;
-      record.tasks = Array.from(taskDivs).map(div => {
-        return {
-          project: div.querySelector('input[name="project"]').value.trim(),
-          detail: div.querySelector('input[name="task"]').value.trim(),
-          duration: parseFloat(div.querySelector('input[name="duration"]').value)
-        };
-      });
-      localStorage.setItem(key, JSON.stringify(record));
-      window.location.href = "record.html";
-    }
-  </script>
-</body>
-</html>
+      record.tasks = Array.from(taskDivs).map(div => ({
+        project: div.querySelector('input[name="project"]').value.trim(),
+        detail: div.querySelector('input[na]()
