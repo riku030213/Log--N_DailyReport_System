@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>日報記録</title>
+  <title>日報入力フォーム</title>
   <style>
     body {
       font-family: sans-serif;
@@ -76,7 +76,6 @@
   </div>
 
   <script type="module">
-    // Firebase SDK 読み込み
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
     import { getAuth } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
     import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
@@ -92,15 +91,10 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
     const db = getFirestore(app);
+    const auth = getAuth(app);
 
-    function toggleNoteField() {
-      const condition = document.getElementById('condition').value;
-      document.getElementById('noteField').style.display = condition === '不調' ? 'block' : 'none';
-    }
-
-    function addTaskEntry() {
+    window.addTaskEntry = function () {
       const container = document.getElementById('taskContainer');
       const div = document.createElement('div');
       div.className = 'task-entry';
@@ -111,14 +105,11 @@
         <p class="error" style="display: none;"></p>
       `;
       container.appendChild(div);
-    }
+    };
 
-    function formatDateKey(date) {
-      return "dailyreport-" + date.toISOString().slice(0, 10);
-    }
-
-    function formatDisplay(date) {
-      return date.getFullYear() + "年" + String(date.getMonth()+1).padStart(2,'0') + "月" + String(date.getDate()).padStart(2,'0') + "日";
+    function toggleNoteField() {
+      const condition = document.getElementById('condition').value;
+      document.getElementById('noteField').style.display = condition === '不調' ? 'block' : 'none';
     }
 
     async function saveRecordToFirestore(record) {
@@ -130,62 +121,52 @@
       }
       const dateKey = record.date.replace(/年|月/g, "-").replace("日", "");
       const docId = `${user.email}_${dateKey}`;
-      try {
-        await setDoc(doc(db, "reports", docId), {
-          ...record,
-          email: user.email,
-          timestamp: new Date().toISOString()
-        });
-        console.log("📤 Firestoreへ保存成功:", docId);
-      } catch (err) {
-        console.error("Firestore保存エラー:", err);
-        alert("Firestoreへの保存に失敗しました。");
-      }
+      await setDoc(doc(db, "reports", docId), {
+        ...record,
+        email: user.email,
+        timestamp: new Date().toISOString()
+      });
     }
 
-    window.submitStartReport = () => {
+    window.submitStartReport = async function () {
       const inputs = document.querySelectorAll('#taskContainer input');
       const filled = Array.from(inputs).some(el => el.value.trim() !== '') ||
                      document.getElementById('breakTime').value ||
                      document.getElementById('condition').value ||
                      document.getElementById('note').value;
-
       if (filled) {
         alert('出勤打刻は空の状態でのみ送信できます。すべての入力をクリアしてください。');
         return;
       }
 
       const now = new Date();
-      const key = formatDateKey(now);
+      const key = "dailyreport-" + now.toISOString().slice(0, 10);
       const record = {
-        date: formatDisplay(now),
+        date: now.getFullYear() + "年" + (now.getMonth()+1).toString().padStart(2,'0') + "月" + now.getDate().toString().padStart(2,'0') + "日",
         start: now.toTimeString().slice(0,5),
         edited: false
       };
       localStorage.setItem(key, JSON.stringify(record));
       sessionStorage.setItem("startTime", now.toISOString());
-      saveRecordToFirestore(record);
-      document.body.innerHTML = '<h2>出勤打刻完了</h2>';
+      await saveRecordToFirestore(record);
+
+      document.body.innerHTML = `<h2>出勤打刻完了</h2><button onclick="location.href='record.html'">OK</button>`;
     };
 
-    window.submitEndReport = () => {
+    window.submitEndReport = async function () {
       const condition = document.getElementById('condition').value;
-      const conditionError = document.getElementById('conditionError');
       const breakTime = parseFloat(document.getElementById('breakTime').value) || 0;
       const now = new Date();
       const startISO = sessionStorage.getItem("startTime");
       if (!startISO) return alert("出勤データがありません");
 
-      conditionError.style.display = "none";
-      document.getElementById('workingTimeError').style.display = "none";
       if (!condition) {
-        conditionError.style.display = "block";
+        document.getElementById('conditionError').style.display = "block";
         return;
       }
 
       const start = new Date(startISO);
       const workingHours = (now - start) / (1000 * 60 * 60) - breakTime;
-      document.getElementById('workingTime').textContent = workingHours.toFixed(2) + "時間";
 
       const taskDivs = document.querySelectorAll('.task-entry');
       let totalTaskTime = 0, hasError = false;
@@ -212,7 +193,7 @@
         return;
       }
 
-      const key = formatDateKey(start);
+      const key = "dailyreport-" + start.toISOString().slice(0, 10);
       const record = JSON.parse(localStorage.getItem(key)) || {};
       record.end = now.toTimeString().slice(0,5);
       record.break = breakTime;
@@ -224,8 +205,9 @@
         duration: parseFloat(div.querySelector('input[name="duration"]').value)
       }));
       localStorage.setItem(key, JSON.stringify(record));
-      saveRecordToFirestore(record);
-      window.location.href = "record.html";
+      await saveRecordToFirestore(record);
+
+      document.body.innerHTML = `<h2>退勤打刻完了。お疲れさまでした！</h2><button onclick="location.href='record.html'">OK</button>`;
     };
   </script>
 </body>
