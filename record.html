@@ -10,11 +10,15 @@
       background-color: #f9f9f9;
       padding: 20px;
     }
+    .record-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 15px;
+    }
     .record {
       background: white;
       border-radius: 8px;
       padding: 15px;
-      margin-bottom: 15px;
       box-shadow: 0 0 5px rgba(0,0,0,0.1);
     }
     .date {
@@ -45,34 +49,83 @@
 </head>
 <body>
   <h2>日報記録一覧　<a href="daily_report.html">← 日報入力に戻る</a></h2>
-  <div id="recordList"></div>
+  <div id="recordList" class="record-grid"></div>
 
   <script>
+    function generateMonthDates(year, month) {
+      const days = new Date(year, month, 0).getDate();
+      const list = [];
+      for (let d = 1; d <= days; d++) {
+        const dateStr = `${year}年${String(month).padStart(2, '0')}月${String(d).padStart(2, '0')}日`;
+        list.push(dateStr);
+      }
+      return list;
+    }
+    function normalizeDateString(input) {
+      const d = new Date(input);
+      if (isNaN(d)) return null;
+      return d.getFullYear() + "年" + String(d.getMonth() + 1).padStart(2, '0') + "月" + String(d.getDate()).padStart(2, '0') + "日";
+}
+
+    function calcWorkingHours(start, end, breakTime) {
+      const [sh, sm] = start.split(":").map(Number);
+      const [eh, em] = end.split(":").map(Number);
+      const startDate = new Date(0, 0, 0, sh, sm);
+      const endDate = new Date(0, 0, 0, eh, em);
+      let diff = (endDate - startDate) / (1000 * 60 * 60);
+      diff -= parseFloat(breakTime || 0);
+      return diff.toFixed(2);
+    }
+
     function loadRecords() {
       const list = document.getElementById("recordList");
       list.innerHTML = "";
 
-      const keys = Object.keys(localStorage).filter(k => k.startsWith("dailyreport-")).sort().reverse();
-      keys.forEach(key => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const dateList = generateMonthDates(year, month);
+
+      const recordMap = {};
+      Object.keys(localStorage).filter(k => k.startsWith("dailyreport-")).forEach(key => {
         const raw = localStorage.getItem(key);
-        if (!raw) return;
-        const record = JSON.parse(raw);
+        if (raw) {
+          const r = JSON.parse(raw);
+          const normalized = normalizeDateString(r.date);
+        if (normalized) recordMap[normalized] = r;
+        }
+      });
 
+      dateList.forEach(date => {
+        const record = recordMap[date];
         const div = document.createElement("div");
-        div.className = "record";
+        div.className = "record empty";
 
-        const edited = record.edited ? `<span class=\"edited\" onclick=\"toggleEditHistory(this)\">(編集済み)</span>` : "";
-        const editHistory = record.editHistory ? `<div class='edit-history'>${record.editHistory.map(h => `変更前: ${h}`).join("<br>")}</div>` : "";
+        if (record) {
+          const edited = record.edited ? `<span class=\"edited\" onclick=\"toggleEditHistory(this)\">(編集済み)</span>` : "";
+          const editHistory = record.editHistory ? `<div class='edit-history'>${record.editHistory.map(h => `変更前: ${h}`).join("<br>")}</div>` : "";
+          const working = (record.start && record.end) ? calcWorkingHours(record.start, record.end, record.break) + "時間" : "--";
 
-        div.innerHTML = `
-          <div class=\"date\">${record.date} ${edited}</div>
-          <div>出勤: ${record.start || "--"}</div>
-          <div>退勤: ${record.end || "<span class='missing-end'>未退勤</span>"}</div>
-          <div>休憩: ${record.break || "--"}時間</div>
-          <div>体調: ${record.condition || "--"}</div>
-          ${record.tasks ? record.tasks.map(t => `<div>・${t.project} / ${t.detail} / ${t.duration}h</div>`).join("") : ""}
-          ${editHistory}
-        `;
+          div.innerHTML = `
+            <div class=\"date\">${record.date} ${edited}</div>
+            <div>出勤: ${record.start || "--"}</div>
+            <div>退勤: ${record.end || "<span class='missing-end'>未退勤</span>"}</div>
+            <div>休憩: ${record.break || "--"}時間</div>
+            <div>体調: ${record.condition || "--"}</div>
+            <div>実働: ${working}</div>
+            ${record.tasks ? record.tasks.map(t => `<div>・${t.project} / ${t.detail} / ${t.duration}h</div>`).join("") : ""}
+            ${editHistory}
+          `;
+        } else {
+          div.innerHTML = `
+            <div class=\"date\">${date}</div>
+            <div>出勤: --</div>
+            <div>退勤: --</div>
+            <div>休憩: --時間</div>
+            <div>体調: --</div>
+            <div>実働: --</div>
+          `;
+        }
 
         list.appendChild(div);
       });
