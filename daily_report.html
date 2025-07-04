@@ -178,4 +178,12 @@
       record.note = document.getElementById('note').value;
       record.tasks = Array.from(taskDivs).map(div => ({
         project: div.querySelector('input[name="project"]').value.trim(),
-        detail: div.querySelector('input[na]()
+        detail: div.querySelector('input[name="task"]').value.trim(),
+        duration: parseFloat(div.querySelector('input[name="duration"]').value)
+      }));
+      localStorage.setItem(key, JSON.stringify(record));
+      window.location.href = "record.html";
+    }
+  </script>
+</body>
+</html>
