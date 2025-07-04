@@ -75,7 +75,26 @@
     <button onclick="submitEndReport()">退勤送信</button>
   </div>
 
-  <script>
+  <script type="module">
+    // Firebase SDK 読み込み
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+    import { getAuth } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC_ZkD7YXmyfmAYvLuFm_3AC1Le_KlMlSg",
+      authDomain: "log-ndailyreportpass.firebaseapp.com",
+      projectId: "log-ndailyreportpass",
+      storageBucket: "log-ndailyreportpass.appspot.com",
+      messagingSenderId: "1024080463078",
+      appId: "1:1024080463078:web:12315db475df67d5f32727",
+      measurementId: "G-GF8QKM2PY1"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
     function toggleNoteField() {
       const condition = document.getElementById('condition').value;
       document.getElementById('noteField').style.display = condition === '不調' ? 'block' : 'none';
@@ -102,7 +121,29 @@
       return date.getFullYear() + "年" + String(date.getMonth()+1).padStart(2,'0') + "月" + String(date.getDate()).padStart(2,'0') + "日";
     }
 
-    function submitStartReport() {
+    async function saveRecordToFirestore(record) {
+      const user = auth.currentUser;
+      if (!user) {
+        alert("ログインしていません。再ログインしてください。");
+        window.location.href = "login.html";
+        return;
+      }
+      const dateKey = record.date.replace(/年|月/g, "-").replace("日", "");
+      const docId = `${user.email}_${dateKey}`;
+      try {
+        await setDoc(doc(db, "reports", docId), {
+          ...record,
+          email: user.email,
+          timestamp: new Date().toISOString()
+        });
+        console.log("📤 Firestoreへ保存成功:", docId);
+      } catch (err) {
+        console.error("Firestore保存エラー:", err);
+        alert("Firestoreへの保存に失敗しました。");
+      }
+    }
+
+    window.submitStartReport = () => {
       const inputs = document.querySelectorAll('#taskContainer input');
       const filled = Array.from(inputs).some(el => el.value.trim() !== '') ||
                      document.getElementById('breakTime').value ||
@@ -123,10 +164,11 @@
       };
       localStorage.setItem(key, JSON.stringify(record));
       sessionStorage.setItem("startTime", now.toISOString());
+      saveRecordToFirestore(record);
       document.body.innerHTML = '<h2>出勤打刻完了</h2>';
-    }
+    };
 
-    function submitEndReport() {
+    window.submitEndReport = () => {
       const condition = document.getElementById('condition').value;
       const conditionError = document.getElementById('conditionError');
       const breakTime = parseFloat(document.getElementById('breakTime').value) || 0;
@@ -182,8 +224,9 @@
         duration: parseFloat(div.querySelector('input[name="duration"]').value)
       }));
       localStorage.setItem(key, JSON.stringify(record));
+      saveRecordToFirestore(record);
       window.location.href = "record.html";
-    }
+    };
   </script>
 </body>
 </html>

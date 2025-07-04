@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>日報記録一覧</title>
   <style>
     body {
@@ -20,6 +20,10 @@
       border-radius: 8px;
       padding: 15px;
       box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    .record.empty {
+      opacity: 0.5;
+      background-color: #eeeeee;
     }
     .date {
       font-weight: bold;
@@ -45,13 +49,41 @@
       color: #007BFF;
       font-size: 0.9em;
     }
+    .email {
+      font-size: 0.8em;
+      color: #666;
+    }
   </style>
 </head>
 <body>
   <h2>日報記録一覧　<a href="daily_report.html">← 日報入力に戻る</a></h2>
   <div id="recordList" class="record-grid"></div>
 
-  <script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC_ZkD7YXmyfmAYvLuFm_3AC1Le_KlMlSg",
+      authDomain: "log-ndailyreportpass.firebaseapp.com",
+      projectId: "log-ndailyreportpass",
+      storageBucket: "log-ndailyreportpass.appspot.com",
+      messagingSenderId: "1024080463078",
+      appId: "1:1024080463078:web:12315db475df67d5f32727",
+      measurementId: "G-GF8QKM2PY1"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    function normalizeDateString(input) {
+      const d = new Date(input);
+      if (isNaN(d)) return null;
+      return d.getFullYear() + "年" + String(d.getMonth() + 1).padStart(2, '0') + "月" + String(d.getDate()).padStart(2, '0') + "日";
+    }
+
     function generateMonthDates(year, month) {
       const days = new Date(year, month, 0).getDate();
       const list = [];
@@ -61,11 +93,6 @@
       }
       return list;
     }
-    function normalizeDateString(input) {
-      const d = new Date(input);
-      if (isNaN(d)) return null;
-      return d.getFullYear() + "年" + String(d.getMonth() + 1).padStart(2, '0') + "月" + String(d.getDate()).padStart(2, '0') + "日";
-}
 
     function calcWorkingHours(start, end, breakTime) {
       const [sh, sm] = start.split(":").map(Number);
@@ -77,7 +104,7 @@
       return diff.toFixed(2);
     }
 
-    function loadRecords() {
+    async function loadRecords(userEmail) {
       const list = document.getElementById("recordList");
       list.innerHTML = "";
 
@@ -87,27 +114,28 @@
       const dateList = generateMonthDates(year, month);
 
       const recordMap = {};
-      Object.keys(localStorage).filter(k => k.startsWith("dailyreport-")).forEach(key => {
-        const raw = localStorage.getItem(key);
-        if (raw) {
-          const r = JSON.parse(raw);
-          const normalized = normalizeDateString(r.date);
-        if (normalized) recordMap[normalized] = r;
+      const snapshot = await getDocs(collection(db, "reports"));
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.email === userEmail) {
+          const normalized = normalizeDateString(data.date);
+          if (normalized) recordMap[normalized] = data;
         }
       });
 
       dateList.forEach(date => {
         const record = recordMap[date];
         const div = document.createElement("div");
-        div.className = "record empty";
 
         if (record) {
-          const edited = record.edited ? `<span class=\"edited\" onclick=\"toggleEditHistory(this)\">(編集済み)</span>` : "";
+          div.className = "record";
+          const edited = record.edited ? `<span class="edited" onclick="toggleEditHistory(this)">(編集済み)</span>` : "";
           const editHistory = record.editHistory ? `<div class='edit-history'>${record.editHistory.map(h => `変更前: ${h}`).join("<br>")}</div>` : "";
           const working = (record.start && record.end) ? calcWorkingHours(record.start, record.end, record.break) + "時間" : "--";
 
           div.innerHTML = `
-            <div class=\"date\">${record.date} ${edited}</div>
+            <div class="date">${record.date} ${edited}</div>
+            <div class="email">ユーザー: ${record.email}</div>
             <div>出勤: ${record.start || "--"}</div>
             <div>退勤: ${record.end || "<span class='missing-end'>未退勤</span>"}</div>
             <div>休憩: ${record.break || "--"}時間</div>
@@ -117,8 +145,9 @@
             ${editHistory}
           `;
         } else {
+          div.className = "record empty";
           div.innerHTML = `
-            <div class=\"date\">${date}</div>
+            <div class="date">${date}</div>
             <div>出勤: --</div>
             <div>退勤: --</div>
             <div>休憩: --時間</div>
@@ -131,12 +160,19 @@
       });
     }
 
-    function toggleEditHistory(el) {
+    window.toggleEditHistory = function(el) {
       const box = el.nextElementSibling;
       if (box) box.style.display = box.style.display === "none" ? "block" : "none";
     }
 
-    window.onload = loadRecords;
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        loadRecords(user.email);
+      } else {
+        alert("ログインしていません。ログインページへ戻ります。");
+        window.location.href = "login.html";
+      }
+    });
   </script>
 </body>
 </html>
