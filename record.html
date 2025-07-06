@@ -4,10 +4,161 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>日報記録一覧</title>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+    import {
+      getFirestore, collection, getDocs, query, where
+    } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+
+    // Firebase設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyC_ZkD7YXmyfmAYvLuFm_3AC1Le_KlMlSg",
+      authDomain: "log-ndailyreportpass.firebaseapp.com",
+      projectId: "log-ndailyreportpass",
+      storageBucket: "log-ndailyreportpass.appspot.com",
+      messagingSenderId: "1024080463078",
+      appId: "1:1024080463078:web:12315db475df67d5f32727",
+      measurementId: "G-GF8QKM2PY1"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const userEmail = sessionStorage.getItem("userEmail");
+
+    if (!userEmail) {
+      alert("ログイン情報がありません。ログインしてください。");
+      location.href = "login.html";
+    }
+
+    const viewEmailSelect = document.createElement("select");
+    viewEmailSelect.id = "userSelector";
+    const monthSelect = document.createElement("select");
+    monthSelect.id = "monthSelector";
+    document.addEventListener("DOMContentLoaded", async () => {
+      document.getElementById("controls").append("表示するユーザー：", viewEmailSelect);
+      document.getElementById("controls").append("　月：", monthSelect);
+
+      await loadUserOptions();
+      updateMonthOptions();
+      viewEmailSelect.addEventListener("change", loadRecords);
+      monthSelect.addEventListener("change", loadRecords);
+
+      document.getElementById("exportBtn").addEventListener("click", exportToPDF);
+      loadRecords();
+    });
+
+    function updateMonthOptions() {
+      const now = new Date();
+      const sel = document.getElementById("monthSelector");
+      sel.innerHTML = "";
+      for (let i = 0; i < 12; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const v = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const opt = document.createElement("option");
+        opt.value = v;
+        opt.textContent = `${d.getFullYear()}年${d.getMonth() + 1}月`;
+        sel.appendChild(opt);
+      }
+    }
+
+    async function loadUserOptions() {
+      const snapshot = await getDocs(collection(db, "reports"));
+      const emails = new Set();
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.email) emails.add(data.email);
+      });
+
+      const selector = document.getElementById("userSelector");
+      selector.innerHTML = "";
+      emails.forEach(email => {
+        const opt = document.createElement("option");
+        opt.value = email;
+        opt.textContent = email === userEmail ? `${email}（自分）` : email;
+        selector.appendChild(opt);
+      });
+
+      selector.value = userEmail;
+    }
+
+    function calcWorkingHours(start, end, breakTime) {
+      const [sh, sm] = start.split(":").map(Number);
+      const [eh, em] = end.split(":").map(Number);
+      const s = new Date(0, 0, 0, sh, sm);
+      const e = new Date(0, 0, 0, eh, em);
+      let diff = (e - s) / 3600000;
+      diff -= parseFloat(breakTime || 0);
+      return diff.toFixed(2);
+    }
+
+    async function loadRecords() {
+      const container = document.getElementById("recordList");
+      container.innerHTML = "";
+
+      const selectedUser = document.getElementById("userSelector").value;
+      const selectedMonth = document.getElementById("monthSelector").value;
+      const [selYear, selMonth] = selectedMonth.split("-").map(Number);
+
+      const snapshot = await getDocs(query(collection(db, "reports"), where("email", "==", selectedUser)));
+      const recordMap = {};
+      snapshot.forEach(doc => {
+        const r = doc.data();
+        if (r.date) recordMap[r.date] = r;
+      });
+
+      const daysInMonth = new Date(selYear, selMonth, 0).getDate();
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${selYear}年${String(selMonth).padStart(2, "0")}月${String(d).padStart(2, "0")}日`;
+        const record = recordMap[dateStr];
+        const div = document.createElement("div");
+        div.className = "record";
+
+        if (record) {
+          const edited = record.edited ? `<span class="edited" onclick="toggleEditHistory(this)">(編集済み)</span>` : "";
+          const working = (record.start && record.end) ? calcWorkingHours(record.start, record.end, record.break) + "時間" : "--";
+          div.innerHTML = `
+            <div class="date">${record.date} ${edited}</div>
+            <div>出勤: ${record.start || "--"}</div>
+            <div>退勤: ${record.end || "<span class='missing-end'>未退勤</span>"}</div>
+            <div>休憩: ${record.break || "--"}時間</div>
+            <div>体調: ${record.condition || "--"}</div>
+            <div>実働: ${working}</div>
+            ${record.tasks ? record.tasks.map(t => `<div>・${t.project} / ${t.detail} / ${t.duration}h</div>`).join("") : ""}
+          `;
+        } else {
+          div.innerHTML = `
+            <div class="date">${dateStr}</div>
+            <div>出勤: --</div>
+            <div>退勤: --</div>
+            <div>休憩: --時間</div>
+            <div>体調: --</div>
+            <div>実働: --</div>
+          `;
+        }
+
+        container.appendChild(div);
+      }
+    }
+
+    window.toggleEditHistory = function (el) {
+      const box = el.nextElementSibling;
+      if (box) box.style.display = box.style.display === "none" ? "block" : "none";
+    }
+
+    function exportToPDF() {
+      const content = document.getElementById("recordList").innerHTML;
+      const style = `<style>body { font-family: sans-serif; } .record { margin-bottom: 10px; padding: 8px; border-bottom: 1px solid #ccc; }</style>`;
+      const win = window.open('', '', 'width=800,height=600');
+      win.document.write(`<html><head><title>稼働表</title>${style}</head><body>${content}</body></html>`);
+      win.document.close();
+      win.print();
+    }
+  </script>
+
   <style>
     body {
       font-family: sans-serif;
-      background-color: #f9f9f9;
+      background: #f9f9f9;
       padding: 20px;
     }
     .record-grid {
@@ -24,159 +175,32 @@
     .date {
       font-weight: bold;
     }
+    .missing-end {
+      color: orange;
+      font-weight: bold;
+    }
     .edited {
       font-size: 0.8em;
       color: red;
       cursor: pointer;
     }
-    .edit-history {
-      font-size: 0.8em;
-      background: #f4f4f4;
-      padding: 8px;
-      margin-top: 5px;
-      display: none;
+    #controls {
+      margin-bottom: 15px;
     }
-    .missing-end {
-      color: orange;
-      font-weight: bold;
+    #exportBtn {
+      margin-top: 10px;
     }
     a {
       text-decoration: none;
       color: #007BFF;
       font-size: 0.9em;
     }
-    .gray-out {
-      background-color: #ddd;
-      opacity: 0.6;
-    }
-    .user-select {
-      margin-bottom: 20px;
-    }
   </style>
 </head>
 <body>
   <h2>日報記録一覧　<a href="daily_report.html">← 日報入力に戻る</a></h2>
-  <div class="user-select">
-    表示するユーザー:
-    <select id="userSelect"></select>
-  </div>
+  <div id="controls"></div>
+  <button id="exportBtn">📄 PDFとして保存</button>
   <div id="recordList" class="record-grid"></div>
-
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-    import { getFirestore, collection, getDocs, doc, getDoc, query, where } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyC_ZkD7YXmyfmAYvLuFm_3AC1Le_KIMlSg",
-      authDomain: "log-ndailyreportpass.firebaseapp.com",
-      projectId: "log-ndailyreportpass",
-      storageBucket: "log-ndailyreportpass.appspot.com",
-      messagingSenderId: "1024080463078",
-      appId: "1:1024080463078:web:12315db475df67d5f32727",
-      measurementId: "G-GF8QKM2PY1"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const userEmail = sessionStorage.getItem("userEmail");
-    if (!userEmail) {
-      alert("ログイン情報がありません。ログインしてください。");
-      location.href = "login.html";
-    }
-
-    const userSelect = document.getElementById("userSelect");
-    let recordMap = {};
-
-    async function getAvailableEmails() {
-      const snapshot = await getDocs(collection(db, "reports"));
-      const emails = new Set();
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        if (data.email) emails.add(data.email);
-      });
-      return Array.from(emails);
-    }
-
-    async function loadRecords(email) {
-      const list = document.getElementById("recordList");
-      list.innerHTML = "";
-
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth() + 1;
-      const daysInMonth = new Date(year, month, 0).getDate();
-
-      recordMap = {};
-      const snapshot = await getDocs(query(collection(db, "reports"), where("email", "==", email)));
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        recordMap[data.date] = data;
-      });
-
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr = `${year}年${String(month).padStart(2,'0')}月${String(d).padStart(2,'0')}日`;
-        const record = recordMap[dateStr];
-        const div = document.createElement("div");
-        div.className = "record";
-
-        if (record) {
-          const edited = record.edited ? `<span class="edited" onclick="toggleEditHistory(this)">(編集済み)</span>` : "";
-          const editHistory = record.editHistory ? `<div class='edit-history'>${record.editHistory.map(h => `変更前: ${h}`).join("<br>")}</div>` : "";
-          const working = (record.start && record.end) ? calcWorkingHours(record.start, record.end, record.break) + "時間" : "--";
-          div.innerHTML = `
-            <div class="date">${record.date} ${edited}</div>
-            <div>出勤: ${record.start || "--"}</div>
-            <div>退勤: ${record.end || "<span class='missing-end'>未退勤</span>"}</div>
-            <div>休憩: ${record.break || "--"}時間</div>
-            <div>体調: ${record.condition || "--"}</div>
-            <div>実働: ${working}</div>
-            ${record.tasks ? record.tasks.map(t => `<div>・${t.project} / ${t.detail} / ${t.duration}h</div>`).join("") : ""}
-            ${editHistory}
-          `;
-        } else {
-          div.classList.add("gray-out");
-          div.innerHTML = `
-            <div class="date">${dateStr}</div>
-            <div>出勤: --</div>
-            <div>退勤: --</div>
-            <div>休憩: --時間</div>
-            <div>体調: --</div>
-            <div>実働: --</div>
-          `;
-        }
-
-        list.appendChild(div);
-      }
-    }
-
-    function calcWorkingHours(start, end, breakTime) {
-      const [sh, sm] = start.split(":").map(Number);
-      const [eh, em] = end.split(":").map(Number);
-      const startDate = new Date(0, 0, 0, sh, sm);
-      const endDate = new Date(0, 0, 0, eh, em);
-      let diff = (endDate - startDate) / (1000 * 60 * 60);
-      diff -= parseFloat(breakTime || 0);
-      return diff.toFixed(2);
-    }
-
-    function toggleEditHistory(el) {
-      const box = el.nextElementSibling;
-      if (box) box.style.display = box.style.display === "none" ? "block" : "none";
-    }
-
-    userSelect.addEventListener("change", e => loadRecords(e.target.value));
-
-    (async () => {
-      const emails = await getAvailableEmails();
-      emails.forEach(email => {
-        const option = document.createElement("option");
-        option.value = email;
-        option.textContent = email;
-        if (email === userEmail) option.selected = true;
-        userSelect.appendChild(option);
-      });
-      await loadRecords(userEmail);
-    })();
-  </script>
 </body>
 </html>
