@@ -75,8 +75,10 @@
 
       // Firebase Auth で認証
       signInWithEmailAndPassword(auth, email, password)
-        .then(() => {
+        .then((userCredential) => {
+          const user = userCredential.user;
           sessionStorage.setItem("loggedIn", "true"); // ログイン状態をセッションに記録
+          sessionStorage.setItem("userEmail", user.email); // ★ユーザーのメールアドレスをセッションに保存
           window.location.href = "daily_report.html"; // 日報画面へ遷移
         })
         .catch((error) => {
