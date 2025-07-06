@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>日報記録（Firestore版）</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>日報記録一覧</title>
   <style>
     body {
       font-family: sans-serif;
@@ -21,12 +21,20 @@
       padding: 15px;
       box-shadow: 0 0 5px rgba(0,0,0,0.1);
     }
-    .record.empty {
-      background: #eee;
-      color: #888;
-    }
     .date {
       font-weight: bold;
+    }
+    .edited {
+      font-size: 0.8em;
+      color: red;
+      cursor: pointer;
+    }
+    .edit-history {
+      font-size: 0.8em;
+      background: #f4f4f4;
+      padding: 8px;
+      margin-top: 5px;
+      display: none;
     }
     .missing-end {
       color: orange;
@@ -37,18 +45,29 @@
       color: #007BFF;
       font-size: 0.9em;
     }
+    .gray-out {
+      background-color: #ddd;
+      opacity: 0.6;
+    }
+    .user-select {
+      margin-bottom: 20px;
+    }
   </style>
 </head>
 <body>
-  <h2>日報記録一覧（Firestore版）　<a href="daily_report.html">← 日報入力に戻る</a></h2>
+  <h2>日報記録一覧　<a href="daily_report.html">← 日報入力に戻る</a></h2>
+  <div class="user-select">
+    表示するユーザー:
+    <select id="userSelect"></select>
+  </div>
   <div id="recordList" class="record-grid"></div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-    import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, doc, getDoc, query, where } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
 
     const firebaseConfig = {
-      apiKey: "AIzaSyC_ZkD7YXmyfmAYvLuFm_3AC1Le_KlMlSg",
+      apiKey: "AIzaSyC_ZkD7YXmyfmAYvLuFm_3AC1Le_KIMlSg",
       authDomain: "log-ndailyreportpass.firebaseapp.com",
       projectId: "log-ndailyreportpass",
       storageBucket: "log-ndailyreportpass.appspot.com",
@@ -59,51 +78,63 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const userEmail = sessionStorage.getItem("userEmail");
+    if (!userEmail) {
+      alert("ログイン情報がありません。ログインしてください。");
+      location.href = "login.html";
+    }
 
-    async function loadFirestoreRecords() {
-      const userEmail = sessionStorage.getItem("userEmail");
-      if (!userEmail) {
-        alert("ログイン情報がありません。ログインしてください。");
-        window.location.href = "login.html";
-        return;
-      }
+    const userSelect = document.getElementById("userSelect");
+    let recordMap = {};
+
+    async function getAvailableEmails() {
+      const snapshot = await getDocs(collection(db, "reports"));
+      const emails = new Set();
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.email) emails.add(data.email);
+      });
+      return Array.from(emails);
+    }
+
+    async function loadRecords(email) {
+      const list = document.getElementById("recordList");
+      list.innerHTML = "";
 
       const now = new Date();
       const year = now.getFullYear();
       const month = now.getMonth() + 1;
       const daysInMonth = new Date(year, month, 0).getDate();
 
-      const list = document.getElementById("recordList");
-      list.innerHTML = "";
-
-      const q = query(collection(db, "reports"), where("email", "==", userEmail));
-      const snapshot = await getDocs(q);
-      const recordMap = {};
-
+      recordMap = {};
+      const snapshot = await getDocs(query(collection(db, "reports"), where("email", "==", email)));
       snapshot.forEach(doc => {
         const data = doc.data();
         recordMap[data.date] = data;
       });
 
       for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr = `${year}年${String(month).padStart(2, '0')}月${String(d).padStart(2, '0')}日`;
-        const r = recordMap[dateStr];
+        const dateStr = `${year}年${String(month).padStart(2,'0')}月${String(d).padStart(2,'0')}日`;
+        const record = recordMap[dateStr];
         const div = document.createElement("div");
-        div.className = "record" + (r ? "" : " empty");
+        div.className = "record";
 
-        if (r) {
+        if (record) {
+          const edited = record.edited ? `<span class="edited" onclick="toggleEditHistory(this)">(編集済み)</span>` : "";
+          const editHistory = record.editHistory ? `<div class='edit-history'>${record.editHistory.map(h => `変更前: ${h}`).join("<br>")}</div>` : "";
+          const working = (record.start && record.end) ? calcWorkingHours(record.start, record.end, record.break) + "時間" : "--";
           div.innerHTML = `
-            <div class="date">${r.date}</div>
-            <div>出勤: ${r.start || "--"}</div>
-            <div>退勤: ${r.end || "<span class='missing-end'>未退勤</span>"}</div>
-            <div>休憩: ${r.break || "--"}時間</div>
-            <div>体調: ${r.condition || "--"}</div>
-            <div>実働: ${
-              r.start && r.end ? calcWorkingHours(r.start, r.end, r.break) + "時間" : "--"
-            }</div>
-            ${r.tasks ? r.tasks.map(t => `<div>・${t.project} / ${t.detail} / ${t.duration}h</div>`).join("") : ""}
+            <div class="date">${record.date} ${edited}</div>
+            <div>出勤: ${record.start || "--"}</div>
+            <div>退勤: ${record.end || "<span class='missing-end'>未退勤</span>"}</div>
+            <div>休憩: ${record.break || "--"}時間</div>
+            <div>体調: ${record.condition || "--"}</div>
+            <div>実働: ${working}</div>
+            ${record.tasks ? record.tasks.map(t => `<div>・${t.project} / ${t.detail} / ${t.duration}h</div>`).join("") : ""}
+            ${editHistory}
           `;
         } else {
+          div.classList.add("gray-out");
           div.innerHTML = `
             <div class="date">${dateStr}</div>
             <div>出勤: --</div>
@@ -128,7 +159,24 @@
       return diff.toFixed(2);
     }
 
-    loadFirestoreRecords();
+    function toggleEditHistory(el) {
+      const box = el.nextElementSibling;
+      if (box) box.style.display = box.style.display === "none" ? "block" : "none";
+    }
+
+    userSelect.addEventListener("change", e => loadRecords(e.target.value));
+
+    (async () => {
+      const emails = await getAvailableEmails();
+      emails.forEach(email => {
+        const option = document.createElement("option");
+        option.value = email;
+        option.textContent = email;
+        if (email === userEmail) option.selected = true;
+        userSelect.appendChild(option);
+      });
+      await loadRecords(userEmail);
+    })();
   </script>
 </body>
 </html>
