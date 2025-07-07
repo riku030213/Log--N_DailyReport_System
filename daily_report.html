@@ -103,9 +103,11 @@
     const auth = getAuth(app);
 
     function toggleNoteField() {
-      const condition = document.getElementById('condition').value;
-      document.getElementById('noteField').style.display = condition === '不調' ? 'block' : 'none';
-    }
+  const condition = document.getElementById('condition').value;
+  document.getElementById('noteField').style.display = condition === '不調' ? 'block' : 'none';
+}
+window.toggleNoteField = toggleNoteField;
+
 
    function toggleCustomStart() {
   const checked = document.getElementById('editStartCheck').checked;
@@ -133,17 +135,21 @@ window.toggleCustomStart = toggleCustomStart;
 
 
     function addTaskEntry() {
-      const container = document.getElementById('taskContainer');
-      const div = document.createElement('div');
-      div.className = 'task-entry';
-      div.innerHTML = `
-        <label>案件名:</label><input type="text" name="project"><br>
-        <label>作業内容:</label><input type="text" name="task"><br>
-        <label>作業時間（h）:</label><input type="number" name="duration" step="0.1" min="0">
-        <p class="error" style="display: none;"></p>
-      `;
-      container.appendChild(div);
-    }
+  const container = document.getElementById('taskContainer');
+  const div = document.createElement('div');
+  div.className = 'task-entry';
+  div.innerHTML = `
+    <label>案件名:</label><input type="text" name="project"><br>
+    <label>作業内容:</label><input type="text" name="task"><br>
+    <label>作業時間（h）:</label><input type="number" name="duration" step="0.1" min="0">
+    <p class="error" style="display: none;"></p>
+  `;
+  container.appendChild(div);
+}
+
+// 🔽 グローバル登録
+window.addTaskEntry = addTaskEntry;
+
 
     function formatDisplay(date) {
       return `${date.getFullYear()}年${String(date.getMonth() + 1).padStart(2, "0")}月${String(date.getDate()).padStart(2, "0")}日`;
@@ -183,7 +189,7 @@ window.toggleCustomStart = toggleCustomStart;
           return;
         }
 
-        
+
         const docRef = doc(db, "reports", getDocId(user.email, displayDate));
         await setDoc(docRef, {
           email: user.email,
