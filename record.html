@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>日報記録一覧</title>
   <style>
     body {
@@ -42,6 +42,10 @@
     .missing-end {
       color: orange;
       font-weight: bold;
+    }
+    .mark {
+      color: #777;
+      font-size: 0.85em;
     }
     .controls {
       margin-bottom: 20px;
@@ -146,11 +150,15 @@
         if (record) {
           const edited = record.edited ? `<span class="edited" onclick="toggleEditHistory(this)">(編集済み)</span>` : "";
           const editHistory = record.editHistory ? `<div class='edit-history'>${record.editHistory.map(h => `変更前: ${h}`).join("<br>")}</div>` : "";
+
+          let displayStart = record.start || "--";
+          displayStart = displayStart.replace("（修正入力）", `<span class="mark">(修正入力)</span>`);
+
           const working = (record.start && record.end) ? calcWorkingHours(record.start, record.end, record.break) + "時間" : "--";
 
           div.innerHTML = `
             <div class="date">${record.date} ${edited}</div>
-            <div>出勤: ${record.start || "--"}</div>
+            <div>出勤: ${displayStart}</div>
             <div>退勤: ${record.end || "<span class='missing-end'>未退勤</span>"}</div>
             <div>休憩: ${record.break || "--"}時間</div>
             <div>体調: ${record.condition || "--"}</div>
