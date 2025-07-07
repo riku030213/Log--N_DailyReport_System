@@ -107,20 +107,29 @@
       document.getElementById('noteField').style.display = condition === '不調' ? 'block' : 'none';
     }
 
-    function toggleCustomStart() {
+   function toggleCustomStart() {
   const checked = document.getElementById('editStartCheck').checked;
   const input = document.getElementById('customStartTime');
 
   if (checked) {
-    input.removeAttribute("disabled");      // 有効化
-    input.style.opacity = "1";              // 非活性っぽく見えないように
-    input.focus();                          // 入力を即開始できるように
+    input.disabled = false;
+    input.removeAttribute('readonly');
+    input.style.opacity = '1';
+    input.style.pointerEvents = 'auto';
+    input.style.backgroundColor = 'white';
+    input.focus();
+
+    // iOS対策として一瞬だけvalueを変更し強制リレンダリング
+    input.value = '12:00';
+    setTimeout(() => input.value = '', 0);
   } else {
-    input.setAttribute("disabled", "true"); // 無効化
-    input.value = "";                       // 入力内容は初期化
-    document.getElementById('customStartError').style.display = "none";
+    input.disabled = true;
+    input.value = '';
+    document.getElementById('customStartError').style.display = 'none';
   }
 }
+
+
 
 
     function addTaskEntry() {
