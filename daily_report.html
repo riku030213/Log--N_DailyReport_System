@@ -85,7 +85,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
 
     const firebaseConfig = {
@@ -103,53 +103,36 @@
     const auth = getAuth(app);
 
     function toggleNoteField() {
-  const condition = document.getElementById('condition').value;
-  document.getElementById('noteField').style.display = condition === '不調' ? 'block' : 'none';
-}
-window.toggleNoteField = toggleNoteField;
+      const condition = document.getElementById('condition').value;
+      document.getElementById('noteField').style.display = condition === '不調' ? 'block' : 'none';
+    }
+    window.toggleNoteField = toggleNoteField;
 
-
-   function toggleCustomStart() {
-  const checked = document.getElementById('editStartCheck').checked;
-  const input = document.getElementById('customStartTime');
-
-  if (checked) {
-    input.disabled = false;
-    input.removeAttribute('readonly');
-    input.style.opacity = '1';
-    input.style.pointerEvents = 'auto';
-    input.style.backgroundColor = 'white';
-    input.focus();
-  } else {
-    input.disabled = true;
-    input.value = '';
-    document.getElementById('customStartError').style.display = 'none';
-  }
-}
-
-// 🔽 これを必ず追加（公開）
-window.toggleCustomStart = toggleCustomStart;
-
-
-
-
+    function toggleCustomStart() {
+      const checked = document.getElementById('editStartCheck').checked;
+      const input = document.getElementById('customStartTime');
+      input.disabled = !checked;
+      input.value = '';
+      input.style.opacity = checked ? '1' : '0.5';
+      input.style.pointerEvents = checked ? 'auto' : 'none';
+      input.style.backgroundColor = 'white';
+      document.getElementById('customStartError').style.display = 'none';
+    }
+    window.toggleCustomStart = toggleCustomStart;
 
     function addTaskEntry() {
-  const container = document.getElementById('taskContainer');
-  const div = document.createElement('div');
-  div.className = 'task-entry';
-  div.innerHTML = `
-    <label>案件名:</label><input type="text" name="project"><br>
-    <label>作業内容:</label><input type="text" name="task"><br>
-    <label>作業時間（h）:</label><input type="number" name="duration" step="0.1" min="0">
-    <p class="error" style="display: none;"></p>
-  `;
-  container.appendChild(div);
-}
-
-// 🔽 グローバル登録
-window.addTaskEntry = addTaskEntry;
-
+      const container = document.getElementById('taskContainer');
+      const div = document.createElement('div');
+      div.className = 'task-entry';
+      div.innerHTML = `
+        <label>案件名:</label><input type="text" name="project"><br>
+        <label>作業内容:</label><input type="text" name="task"><br>
+        <label>作業時間（h）:</label><input type="number" name="duration" step="0.1" min="0">
+        <p class="error" style="display: none;"></p>
+      `;
+      container.appendChild(div);
+    }
+    window.addTaskEntry = addTaskEntry;
 
     function formatDisplay(date) {
       return `${date.getFullYear()}年${String(date.getMonth() + 1).padStart(2, "0")}月${String(date.getDate()).padStart(2, "0")}日`;
@@ -189,7 +172,6 @@ window.addTaskEntry = addTaskEntry;
           return;
         }
 
-
         const docRef = doc(db, "reports", getDocId(user.email, displayDate));
         await setDoc(docRef, {
           email: user.email,
@@ -208,6 +190,77 @@ window.addTaskEntry = addTaskEntry;
         `;
       });
     };
+
+    function submitEndReport() {
+      const startISO = sessionStorage.getItem("startTime");
+      if (!startISO) return alert("出勤情報が見つかりません。");
+
+      const start = new Date(startISO);
+      const now = new Date();
+      const breakTime = parseFloat(document.getElementById("breakTime").value) || 0;
+      const workingHours = ((now - start) / (1000 * 60 * 60)) - breakTime;
+      document.getElementById("workingTime").textContent = workingHours.toFixed(2) + "時間";
+
+      const taskDivs = document.querySelectorAll(".task-entry");
+      const tasks = [];
+      let total = 0;
+      let hasError = false;
+
+      taskDivs.forEach(div => {
+        const project = div.querySelector('input[name="project"]').value.trim();
+        const task = div.querySelector('input[name="task"]').value.trim();
+        const duration = parseFloat(div.querySelector('input[name="duration"]').value);
+        const errorP = div.querySelector("p.error");
+
+        if (!project || !task || isNaN(duration)) {
+          errorP.textContent = "すべての項目を入力してください。";
+          errorP.style.display = "block";
+          hasError = true;
+        } else {
+          errorP.style.display = "none";
+          total += duration;
+          tasks.push({ project, detail: task, duration });
+        }
+      });
+
+      if (hasError) return;
+
+      if (Math.abs(total - workingHours) > 0.1) {
+        document.getElementById("workingTimeError").textContent =
+          `作業合計(${total.toFixed(2)}h)と実働(${workingHours.toFixed(2)}h)が一致しません。`;
+        document.getElementById("workingTimeError").style.display = "block";
+        return;
+      }
+
+      const condition = document.getElementById("condition").value;
+      if (!condition) {
+        document.getElementById("conditionError").style.display = "block";
+        return;
+      }
+
+      const note = document.getElementById("note").value;
+      const displayDate = formatDisplay(start);
+
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) return alert("ログイン情報がありません。");
+
+        const docRef = doc(db, "reports", getDocId(user.email, displayDate));
+        await updateDoc(docRef, {
+          end: now.toTimeString().slice(0, 5),
+          break: breakTime,
+          condition,
+          note,
+          tasks,
+          updated: new Date().toISOString()
+        });
+
+        document.body.innerHTML = `
+          <h2>退勤打刻完了。お疲れさまでした！</h2>
+          <button onclick="location.href='record.html'">OK</button>
+        `;
+      });
+    }
+    window.submitEndReport = submitEndReport;
   </script>
 </body>
 </html>
