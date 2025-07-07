@@ -83,7 +83,25 @@
     <button onclick="submitEndReport()">退勤送信</button>
   </div>
 
-  <script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+    import { getAuth } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC_ZkD7YXmyfmAYvLuFm_3AC1Le_KlMlSg",
+      authDomain: "log-ndailyreportpass.firebaseapp.com",
+      projectId: "log-ndailyreportpass",
+      storageBucket: "log-ndailyreportpass.appspot.com",
+      messagingSenderId: "1024080463078",
+      appId: "1:1024080463078:web:12315db475df67d5f32727",
+      measurementId: "G-GF8QKM2PY1"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth();
+
     function toggleNoteField() {
       const condition = document.getElementById('condition').value;
       document.getElementById('noteField').style.display = condition === '不調' ? 'block' : 'none';
@@ -120,7 +138,7 @@
       return date.getFullYear() + "年" + String(date.getMonth()+1).padStart(2,'0') + "月" + String(date.getDate()).padStart(2,'0') + "日";
     }
 
-    function submitStartReport() {
+    async function submitStartReport() {
       const editChecked = document.getElementById("editStartCheck").checked;
       const customTime = document.getElementById("customStartTime").value;
       const customStartError = document.getElementById("customStartError");
@@ -138,84 +156,33 @@
       if (editChecked) {
         const [hh, mm] = customTime.split(":").map(Number);
         startDate.setHours(hh, mm, 0, 0);
-        mark = " (修正入力)";
+        mark = "（修正入力）";
       }
 
       const key = formatDateKey(startDate);
       const record = {
         date: formatDisplay(startDate),
-        start: startDate.toTimeString().slice(0,5) + mark,
+        start: startDate.toTimeString().slice(0,5) + (mark || ""),
         edited: editChecked
       };
       localStorage.setItem(key, JSON.stringify(record));
       sessionStorage.setItem("startTime", startDate.toISOString());
 
+      // Firestoreにも保存
+      const email = sessionStorage.getItem("userEmail");
+      if (email) {
+        await addDoc(collection(db, "reports"), {
+          email,
+          date: record.date,
+          start: startDate.toTimeString().slice(0,5) + (mark || ""),
+          edited: editChecked,
+          timestamp: serverTimestamp()
+        });
+      }
+
       document.body.innerHTML = `
         <h2>出勤打刻完了</h2>
         <p>${record.start} に記録されました。</p>
-        <button onclick="location.href='record.html'">OK</button>
-      `;
-    }
-
-    function submitEndReport() {
-      const condition = document.getElementById('condition').value;
-      const conditionError = document.getElementById('conditionError');
-      const breakTime = parseFloat(document.getElementById('breakTime').value) || 0;
-      const now = new Date();
-      const startISO = sessionStorage.getItem("startTime");
-      if (!startISO) return alert("出勤データがありません");
-
-      conditionError.style.display = "none";
-      document.getElementById('workingTimeError').style.display = "none";
-      if (!condition) {
-        conditionError.style.display = "block";
-        return;
-      }
-
-      const start = new Date(startISO);
-      const workingHours = (now - start) / (1000 * 60 * 60) - breakTime;
-      document.getElementById('workingTime').textContent = workingHours.toFixed(2) + "時間";
-
-      const taskDivs = document.querySelectorAll('.task-entry');
-      let totalTaskTime = 0, hasError = false;
-      taskDivs.forEach(div => {
-        const p = div.querySelector('input[name="project"]').value.trim();
-        const t = div.querySelector('input[name="task"]').value.trim();
-        const d = parseFloat(div.querySelector('input[name="duration"]').value);
-        const err = div.querySelector('p.error');
-        if (!p || !t || isNaN(d)) {
-          err.textContent = "すべての項目を入力してください。";
-          err.style.display = "block";
-          hasError = true;
-        } else {
-          err.style.display = "none";
-          totalTaskTime += d;
-        }
-      });
-      if (hasError) return;
-
-      if (Math.abs(totalTaskTime - workingHours) > 0.1) {
-        document.getElementById('workingTimeError').textContent =
-          `作業合計(${totalTaskTime.toFixed(2)}h)と実働(${workingHours.toFixed(2)}h)が一致しません。`;
-        document.getElementById('workingTimeError').style.display = "block";
-        return;
-      }
-
-      const key = formatDateKey(start);
-      const record = JSON.parse(localStorage.getItem(key)) || {};
-      record.end = now.toTimeString().slice(0,5);
-      record.break = breakTime;
-      record.condition = condition;
-      record.note = document.getElementById('note').value;
-      record.tasks = Array.from(taskDivs).map(div => ({
-        project: div.querySelector('input[name="project"]').value.trim(),
-        detail: div.querySelector('input[name="task"]').value.trim(),
-        duration: parseFloat(div.querySelector('input[name="duration"]').value)
-      }));
-      localStorage.setItem(key, JSON.stringify(record));
-
-      document.body.innerHTML = `
-        <h2>退勤打刻完了。お疲れさまでした！</h2>
         <button onclick="location.href='record.html'">OK</button>
       `;
     }
