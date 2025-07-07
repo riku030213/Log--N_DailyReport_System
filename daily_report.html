@@ -108,14 +108,20 @@
     }
 
     function toggleCustomStart() {
-      const checked = document.getElementById('editStartCheck').checked;
-      const input = document.getElementById('customStartTime');
-      input.disabled = !checked;
-      if (!checked) {
-        input.value = "";
-        document.getElementById('customStartError').style.display = "none";
-      }
-    }
+  const checked = document.getElementById('editStartCheck').checked;
+  const input = document.getElementById('customStartTime');
+
+  if (checked) {
+    input.removeAttribute("disabled");      // 有効化
+    input.style.opacity = "1";              // 非活性っぽく見えないように
+    input.focus();                          // 入力を即開始できるように
+  } else {
+    input.setAttribute("disabled", "true"); // 無効化
+    input.value = "";                       // 入力内容は初期化
+    document.getElementById('customStartError').style.display = "none";
+  }
+}
+
 
     function addTaskEntry() {
       const container = document.getElementById('taskContainer');
