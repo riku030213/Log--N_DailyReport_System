@@ -118,16 +118,16 @@
     input.style.pointerEvents = 'auto';
     input.style.backgroundColor = 'white';
     input.focus();
-
-    // iOS対策として一瞬だけvalueを変更し強制リレンダリング
-    input.value = '12:00';
-    setTimeout(() => input.value = '', 0);
   } else {
     input.disabled = true;
     input.value = '';
     document.getElementById('customStartError').style.display = 'none';
   }
 }
+
+// 🔽 これを必ず追加（公開）
+window.toggleCustomStart = toggleCustomStart;
+
 
 
 
@@ -183,6 +183,7 @@
           return;
         }
 
+        
         const docRef = doc(db, "reports", getDocId(user.email, displayDate));
         await setDoc(docRef, {
           email: user.email,
