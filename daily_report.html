@@ -35,7 +35,7 @@
       justify-content: space-between;
       align-items: center;
     }
-    #customStartTime {
+    #customStartTime, #customEndTime {
       width: 100px;
     }
   </style>
@@ -79,6 +79,10 @@
     <input type="time" id="customStartTime" disabled>
     <p id="customStartError" class="error" style="display: none;">修正する時刻を入力してください。</p><br>
 
+    <label><input type="checkbox" id="editEndCheck" onchange="toggleCustomEnd()" style="display: none;"> 退勤打刻を修正する</label><br>
+    <input type="time" id="customEndTime" disabled style="display: none;">
+    <p id="customEndError" class="error" style="display: none;">修正する時刻を入力してください。</p><br>
+
     <button onclick="submitStartReport()">出勤送信</button>
     <button onclick="submitEndReport()">退勤送信</button>
   </div>
@@ -120,26 +124,45 @@
     }
     window.toggleCustomStart = toggleCustomStart;
 
+    function toggleCustomEnd() {
+      const checked = document.getElementById("editEndCheck").checked;
+      const input = document.getElementById("customEndTime");
+      if (checked) {
+        input.disabled = false;
+        input.style.display = "inline";
+        input.style.opacity = "1";
+        input.style.pointerEvents = "auto";
+
+        const selectedDate = sessionStorage.getItem("selectedDate");
+        const today = new Date().toDateString();
+        const isToday = !selectedDate || new Date(selectedDate).toDateString() === today;
+        if (isToday) {
+          const now = new Date();
+          input.max = now.toTimeString().slice(0, 5);
+        } else {
+          input.removeAttribute("max");
+        }
+      } else {
+        input.disabled = true;
+        input.style.display = "none";
+        input.value = "";
+        document.getElementById("customEndError").style.display = "none";
+      }
+    }
+    window.toggleCustomEnd = toggleCustomEnd;
+
     function addTaskEntry() {
-  const container = document.getElementById('taskContainer');
-  const div = document.createElement('div');
-  div.className = 'task-entry';
-  div.innerHTML = `
-    <label>案件名:</label><input type="text" name="project"><br>
-    <label>作業内容:</label><textarea name="task" rows="1" style="width: 100%; resize: none; overflow: hidden;"></textarea><br>
-    <label>作業時間（h）:</label><input type="number" name="duration" step="0.1" min="0">
-    <p class="error" style="display: none;"></p>
-  `;
-  container.appendChild(div);
-
-  // 高さ自動調整
-  const textarea = div.querySelector("textarea[name='task']");
-  textarea.addEventListener("input", () => {
-    textarea.style.height = "auto";
-    textarea.style.height = textarea.scrollHeight + "px";
-  });
-}
-
+      const container = document.getElementById('taskContainer');
+      const div = document.createElement('div');
+      div.className = 'task-entry';
+      div.innerHTML = `
+        <label>案件名:</label><input type="text" name="project"><br>
+        <label>作業内容:</label><input type="text" name="task"><br>
+        <label>作業時間（h）:</label><input type="number" name="duration" step="0.1" min="0">
+        <p class="error" style="display: none;"></p>
+      `;
+      container.appendChild(div);
+    }
     window.addTaskEntry = addTaskEntry;
 
     function formatDisplay(date) {
@@ -149,17 +172,6 @@
     function getDocId(email, date) {
       return `${email}_${date}`;
     }
-
-    // 🔽 実働時間を1秒ごとに更新する処理
-    setInterval(() => {
-      const startISO = sessionStorage.getItem("startTime");
-      if (!startISO) return;
-      const start = new Date(startISO);
-      const now = new Date();
-      const breakTime = parseFloat(document.getElementById("breakTime").value) || 0;
-      const hours = ((now - start) / (1000 * 60 * 60)) - breakTime;
-      document.getElementById("workingTime").textContent = hours.toFixed(1) + "時間";
-    }, 1000);
 
     window.submitStartReport = function () {
       const editChecked = document.getElementById("editStartCheck").checked;
@@ -210,15 +222,34 @@
       });
     };
 
-    function submitEndReport() {
+    window.submitEndReport = function () {
       const startISO = sessionStorage.getItem("startTime");
       if (!startISO) return alert("出勤情報が見つかりません。");
 
       const start = new Date(startISO);
       const now = new Date();
       const breakTime = parseFloat(document.getElementById("breakTime").value) || 0;
-      const workingHours = ((now - start) / (1000 * 60 * 60)) - breakTime;
-      document.getElementById("workingTime").textContent = workingHours.toFixed(1) + "時間";
+
+      const editEndChecked = document.getElementById("editEndCheck")?.checked;
+      const customEnd = document.getElementById("customEndTime")?.value;
+      const endErrorEl = document.getElementById("customEndError");
+
+      let end = new Date();
+      let endTimeDisplay = end.toTimeString().slice(0, 5);
+
+      if (editEndChecked) {
+        if (!customEnd) {
+          endErrorEl.style.display = "block";
+          return;
+        }
+        endErrorEl.style.display = "none";
+        const [hh, mm] = customEnd.split(":").map(Number);
+        end.setHours(hh, mm, 0, 0);
+        endTimeDisplay = customEnd + " (修正入力)";
+      }
+
+      const workingHours = ((end - start) / (1000 * 60 * 60)) - breakTime;
+      document.getElementById("workingTime").textContent = workingHours.toFixed(2) + "時間";
 
       const taskDivs = document.querySelectorAll(".task-entry");
       const tasks = [];
@@ -265,7 +296,7 @@
 
         const docRef = doc(db, "reports", getDocId(user.email, displayDate));
         await updateDoc(docRef, {
-          end: now.toTimeString().slice(0, 5),
+          end: endTimeDisplay,
           break: breakTime,
           condition,
           note,
@@ -278,8 +309,13 @@
           <button onclick="location.href='record.html'">OK</button>
         `;
       });
+    };
+
+    // 条件付き表示: 編集時のみ退勤修正欄を出す
+    const selected = sessionStorage.getItem("selectedDate");
+    if (selected && new Date(selected).toDateString() !== new Date().toDateString()) {
+      document.getElementById("editEndCheck").style.display = "inline";
     }
-    window.submitEndReport = submitEndReport;
   </script>
 </body>
 </html>
