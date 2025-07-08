@@ -143,8 +143,12 @@
     window.addTaskEntry = addTaskEntry;
 
     function formatDisplay(date) {
-      return `${date.getFullYear()}年${String(date.getMonth() + 1).padStart(2, "0")}月${String(date.getDate()).padStart(2, "0")}日`;
-    }
+  const adjusted = new Date(date); // 元のdateを破壊しないようコピー
+  if (adjusted.getHours() < 4) {
+    adjusted.setDate(adjusted.getDate() - 1);
+  }
+  return `${adjusted.getFullYear()}年${String(adjusted.getMonth() + 1).padStart(2, "0")}月${String(adjusted.getDate()).padStart(2, "0")}日`;
+}
 
     function getDocId(email, date) {
       return `${email}_${date}`;
