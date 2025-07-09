@@ -125,15 +125,36 @@
     }
 
     function calcWorkingHours(start, end, breakTime) {
-      const [sh, sm] = start.split(":").map(Number);
-      const [eh, em] = end.split(":").map(Number);
-      const startDate = new Date(0, 0, 0, sh, sm);
-      const endDate = new Date(0, 0, 0, eh, em);
-      let diff = (endDate - startDate) / (1000 * 60 * 60);
-      diff -= parseFloat(breakTime || 0);
-      return diff.toFixed(2);
+    let [sh, sm] = start.split(":").map(Number);
+    let [eh, em] = end.split(":").map(Number);
+
+    // 🔽 4時未満は+24して28時制に
+    if (sh < 4) sh += 24;
+    if (eh < 4) eh += 24;
+
+   const startMins = sh * 60 + sm;
+   const endMins = eh * 60 + em;
+   let diff = (endMins - startMins) / 60;
+
+    diff -= parseFloat(breakTime || 0);
+    return diff.toFixed(2);
+   }
+
+
+    function formatDisplay(date) {
+  const adjusted = new Date(date);
+    if (adjusted.getHours() < 4) {
+    adjusted.setDate(adjusted.getDate() - 1);
+    }
+    return `${adjusted.getFullYear()}年${String(adjusted.getMonth() + 1).padStart(2, "0")}月${String(adjusted.getDate()).padStart(2, "0")}日`;
+    }
+    function formatHourString(hhmmStr) {
+    const [h, m] = hhmmStr.split(":").map(Number);
+    const adjustedH = (h < 4) ? h + 24 : h;
+    return `${adjustedH}:${String(m).padStart(2, "0")}`;
     }
 
+    
     function renderRecords(records, selectedYear, selectedMonth) {
       recordList.innerHTML = "";
 
@@ -153,6 +174,11 @@
 
           let displayStart = record.start || "--";
           displayStart = displayStart.replace("（修正入力）", `<span class="mark">(修正入力)</span>`);
+          if (displayStart !== "--") {
+          const timeOnly = record.start.split(" ")[0]; // → 時刻部分のみ抽出
+          displayStart = formatHourString(timeOnly) + displayStart.replace(timeOnly, "");
+          }
+
 
           const working = (record.start && record.end) ? calcWorkingHours(record.start, record.end, record.break) + "時間" : "--";
 
@@ -167,15 +193,18 @@
             ${editHistory}
           `;
         } else {
-          div.innerHTML = `
-            <div class="date">${dateStr}</div>
-            <div>出勤: --</div>
-            <div>退勤: --</div>
-            <div>休憩: --時間</div>
-            <div>体調: --</div>
-            <div>実働: --</div>
-          `;
-        }
+        const displayStart = "--";
+        const displayEnd = "--";
+        div.innerHTML = `
+        <div class="date">${dateStr}</div>
+        <div>出勤: ${displayStart}</div>
+        <div>退勤: ${displayEnd}</div>
+       <div>休憩: --時間</div>
+       <div>体調: --</div>
+       <div>実働: --</div>
+      `;
+      }
+
 
         recordList.appendChild(div);
       }

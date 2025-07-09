@@ -156,14 +156,25 @@
 
     // 🔽 実働時間を1秒ごとに更新する処理
     setInterval(() => {
-      const startISO = sessionStorage.getItem("startTime");
-      if (!startISO) return;
-      const start = new Date(startISO);
-      const now = new Date();
-      const breakTime = parseFloat(document.getElementById("breakTime").value) || 0;
-      const hours = ((now - start) / (1000 * 60 * 60)) - breakTime;
-      document.getElementById("workingTime").textContent = hours.toFixed(1) + "時間";
+    const startISO = sessionStorage.getItem("startTime");
+    if (!startISO) return;
+    const start = new Date(startISO);
+   const now = new Date();
+
+   let sh = start.getHours();
+   let eh = now.getHours();
+   if (sh < 4) sh += 24;
+    if (eh < 4) eh += 24;
+
+    const startMins = sh * 60 + start.getMinutes();
+    const endMins = eh * 60 + now.getMinutes();
+
+    const breakTime = parseFloat(document.getElementById("breakTime").value) || 0;
+    const hours = (endMins - startMins) / 60 - breakTime;
+
+    document.getElementById("workingTime").textContent = hours.toFixed(1) + "時間";
     }, 1000);
+
 
     window.submitStartReport = function () {
       const editChecked = document.getElementById("editStartCheck").checked;
@@ -220,8 +231,20 @@
 
       const start = new Date(startISO);
       const now = new Date();
+      
+      const displayDate = formatDisplay(start); // ✅ 出勤日付と揃える
+      
       const breakTime = parseFloat(document.getElementById("breakTime").value) || 0;
-      const workingHours = ((now - start) / (1000 * 60 * 60)) - breakTime;
+
+      let sh = start.getHours();
+      let eh = now.getHours();
+      if (sh < 4) sh += 24;
+      if (eh < 4) eh += 24;
+
+      const startMins = sh * 60 + start.getMinutes();
+      const endMins = eh * 60 + now.getMinutes();
+
+      const workingHours = (endMins - startMins) / 60 - breakTime;
       document.getElementById("workingTime").textContent = workingHours.toFixed(1) + "時間";
 
       const taskDivs = document.querySelectorAll(".task-entry");
