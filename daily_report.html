@@ -246,7 +246,8 @@
 
       taskDivs.forEach(div => {
         const project = div.querySelector('input[name="project"]').value.trim();
-        const task = div.querySelector('input[name="task"]').value.trim();
+        const task = div.querySelector('textarea[name="task"]').value.trim();
+
         const duration = parseFloat(div.querySelector('input[name="duration"]').value);
         const errorP = div.querySelector("p.error");
 
