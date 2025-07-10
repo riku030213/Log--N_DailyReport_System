@@ -221,14 +221,13 @@
 
     function submitEndReport() {
       const startISO = sessionStorage.getItem("startTime");
-      if (!startISO) return alert("出勤情報が見つかりません。");
-
-      const displayDate = sessionStorage.getItem("displayDate");
-      if (!displayDate) return alert("出勤記録の日付が見つかりません。");
+      if (!startISO) return alert("出勤情報が見つかりません.");
 
       const start = new Date(startISO);
       const now = new Date();
-      const displayDate = formatDisplay(start);
+
+      const displayDate = sessionStorage.getItem("displayDate") || formatDisplay(start);
+
 
       const breakTime = parseFloat(document.getElementById("breakTime").value) || 0;
 
