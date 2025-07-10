@@ -44,7 +44,7 @@
   <div class="form-section">
     <div class="header-flex">
       <h2>日報入力フォーム</h2>
-      <button onclick="window.location.href='record.html'">稼働表確認</button>
+      <button id="viewRecord">稼働表確認</button>
     </div>
 
     <label for="breakTime">休憩時間（時間単位）:</label>
@@ -55,7 +55,7 @@
     </datalist><br><br>
 
     <label for="condition">体調:</label>
-    <select id="condition" onchange="toggleNoteField()">
+    <select id="condition">
       <option value="">-- 未入力 --</option>
       <option value="好調">好調</option>
       <option value="普通">普通</option>
@@ -70,17 +70,17 @@
 
     <h3>作業詳細</h3>
     <div id="taskContainer"></div>
-    <button type="button" onclick="addTaskEntry()">＋ 作業を追加</button><br><br>
+    <button type="button" id="addTaskButton">＋ 作業を追加</button><br><br>
 
     <div><label>実働時間:</label> <span id="workingTime">--</span></div>
     <p id="workingTimeError" class="error" style="display: none;"></p><br>
 
-    <label><input type="checkbox" id="editStartCheck" onchange="toggleCustomStart()"> 出勤打刻を修正する</label><br>
+    <label><input type="checkbox" id="editStartCheck"> 出勤打刻を修正する</label><br>
     <input type="time" id="customStartTime" disabled>
     <p id="customStartError" class="error" style="display: none;">修正する時刻を入力してください。</p><br>
 
-    <button onclick="submitStartReport()">出勤送信</button>
-    <button onclick="submitEndReport()">退勤送信</button>
+    <button id="startButton">出勤送信</button>
+    <button id="endButton">退勤送信</button>
   </div>
 
   <script type="module">
@@ -106,7 +106,6 @@
       const condition = document.getElementById('condition').value;
       document.getElementById('noteField').style.display = condition === '不調' ? 'block' : 'none';
     }
-    window.toggleNoteField = toggleNoteField;
 
     function toggleCustomStart() {
       const checked = document.getElementById('editStartCheck').checked;
@@ -118,65 +117,59 @@
       input.style.backgroundColor = 'white';
       document.getElementById('customStartError').style.display = 'none';
     }
-    window.toggleCustomStart = toggleCustomStart;
 
     function addTaskEntry() {
-  const container = document.getElementById('taskContainer');
-  const div = document.createElement('div');
-  div.className = 'task-entry';
-  div.innerHTML = `
-    <label>案件名:</label><input type="text" name="project"><br>
-    <label>作業内容:</label><textarea name="task" rows="1" style="width: 100%; resize: none; overflow: hidden;"></textarea><br>
-    <label>作業時間（h）:</label><input type="number" name="duration" step="0.1" min="0">
-    <p class="error" style="display: none;"></p>
-  `;
-  container.appendChild(div);
+      const container = document.getElementById('taskContainer');
+      const div = document.createElement('div');
+      div.className = 'task-entry';
+      div.innerHTML = `
+        <label>案件名:</label><input type="text" name="project"><br>
+        <label>作業内容:</label><textarea name="task" rows="1" style="width: 100%; resize: none; overflow: hidden;"></textarea><br>
+        <label>作業時間（h）:</label><input type="number" name="duration" step="0.1" min="0">
+        <p class="error" style="display: none;"></p>
+      `;
+      container.appendChild(div);
 
-  // 高さ自動調整
-  const textarea = div.querySelector("textarea[name='task']");
-  textarea.addEventListener("input", () => {
-    textarea.style.height = "auto";
-    textarea.style.height = textarea.scrollHeight + "px";
-  });
-}
-
-    window.addTaskEntry = addTaskEntry;
+      const textarea = div.querySelector("textarea[name='task']");
+      textarea.addEventListener("input", () => {
+        textarea.style.height = "auto";
+        textarea.style.height = textarea.scrollHeight + "px";
+      });
+    }
 
     function formatDisplay(date) {
-  const adjusted = new Date(date); // 元のdateを破壊しないようコピー
-  if (adjusted.getHours() < 4) {
-    adjusted.setDate(adjusted.getDate() - 1);
-  }
-  return `${adjusted.getFullYear()}年${String(adjusted.getMonth() + 1).padStart(2, "0")}月${String(adjusted.getDate()).padStart(2, "0")}日`;
-}
+      const adjusted = new Date(date);
+      if (adjusted.getHours() < 4) {
+        adjusted.setDate(adjusted.getDate() - 1);
+      }
+      return `${adjusted.getFullYear()}年${String(adjusted.getMonth() + 1).padStart(2, "0")}月${String(adjusted.getDate()).padStart(2, "0")}日`;
+    }
 
     function getDocId(email, date) {
       return `${email}_${date}`;
     }
 
-    // 🔽 実働時間を1秒ごとに更新する処理
     setInterval(() => {
-    const startISO = sessionStorage.getItem("startTime");
-    if (!startISO) return;
-    const start = new Date(startISO);
-   const now = new Date();
+      const startISO = sessionStorage.getItem("startTime");
+      if (!startISO) return;
+      const start = new Date(startISO);
+      const now = new Date();
 
-   let sh = start.getHours();
-   let eh = now.getHours();
-   if (sh < 4) sh += 24;
-    if (eh < 4) eh += 24;
+      let sh = start.getHours();
+      let eh = now.getHours();
+      if (sh < 4) sh += 24;
+      if (eh < 4) eh += 24;
 
-    const startMins = sh * 60 + start.getMinutes();
-    const endMins = eh * 60 + now.getMinutes();
+      const startMins = sh * 60 + start.getMinutes();
+      const endMins = eh * 60 + now.getMinutes();
 
-    const breakTime = parseFloat(document.getElementById("breakTime").value) || 0;
-    const hours = (endMins - startMins) / 60 - breakTime;
+      const breakTime = parseFloat(document.getElementById("breakTime").value) || 0;
+      const hours = (endMins - startMins) / 60 - breakTime;
 
-    document.getElementById("workingTime").textContent = hours.toFixed(1) + "時間";
+      document.getElementById("workingTime").textContent = hours.toFixed(1) + "時間";
     }, 1000);
 
-
-    window.submitStartReport = function () {
+    function submitStartReport() {
       const editChecked = document.getElementById("editStartCheck").checked;
       const customTime = document.getElementById("customStartTime").value;
       const errorEl = document.getElementById("customStartError");
@@ -223,7 +216,7 @@
           <button onclick="location.href='record.html'">OK</button>
         `;
       });
-    };
+    }
 
     function submitEndReport() {
       const startISO = sessionStorage.getItem("startTime");
@@ -231,9 +224,8 @@
 
       const start = new Date(startISO);
       const now = new Date();
-      
-      const displayDate = formatDisplay(start); // ✅ 出勤日付と揃える
-      
+      const displayDate = formatDisplay(start);
+
       const breakTime = parseFloat(document.getElementById("breakTime").value) || 0;
 
       let sh = start.getHours();
@@ -285,7 +277,6 @@
       }
 
       const note = document.getElementById("note").value;
-      const displayDate = formatDisplay(start);
 
       onAuthStateChanged(auth, async (user) => {
         if (!user) return alert("ログイン情報がありません。");
@@ -306,7 +297,14 @@
         `;
       });
     }
-    window.submitEndReport = submitEndReport;
+
+    // イベントバインド（type=module対応）
+    document.getElementById("condition").addEventListener("change", toggleNoteField);
+    document.getElementById("editStartCheck").addEventListener("change", toggleCustomStart);
+    document.getElementById("addTaskButton").addEventListener("click", addTaskEntry);
+    document.getElementById("startButton").addEventListener("click", submitStartReport);
+    document.getElementById("endButton").addEventListener("click", submitEndReport);
+    document.getElementById("viewRecord").addEventListener("click", () => location.href = "record.html");
   </script>
 </body>
 </html>
