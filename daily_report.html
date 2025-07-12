@@ -108,7 +108,7 @@
   <!-- Firebase SDKと初期化 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-    import { getFirestore, doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
 
     const firebaseConfig = {
@@ -195,8 +195,8 @@
 
 
 
-//出勤時間をfirestorageから取得
-    import { getDoc } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+//出勤時間をfirestorageから取得し、実働時間リアルタイムプレビューの計算に使用
+    
 
     // 上で宣言しておく（スコープ外で初期化）
     let startDate = null;
