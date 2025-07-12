@@ -250,43 +250,44 @@
 
 
 //出勤送信
-        onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        alert("ログイン情報がありません。ログインしてください。");
-        window.location.href = "login.html";
+    function submitStartReport() {
+      const editChecked = document.getElementById("editStartCheck").checked;
+      const customTime = document.getElementById("customStartTime").value;
+      const errorEl = document.getElementById("customStartError");
+      if (editChecked && !customTime) {
+        errorEl.style.display = "block";
         return;
       }
+      errorEl.style.display = "none";
 
-      // 🔽 ここに入れる！
-      const reportsRef = collection(db, "reports");
-      const q = query(
-        reportsRef,
-        where("email", "==", user.email),
-        where("start", "!=", null),
-        where("end", "==", null)
-      );
-      const snapshot = await getDocs(q);
-      let targetDocRef;
+      const now = new Date();
+      let startDate = new Date();
+      let mark = "";
 
-      if (!snapshot.empty) {
-        // 🔒 すでに出勤していて退勤していない記録がある → そこに上書き
-        const docData = snapshot.docs[0].data();
-        targetDocRef = doc(db, "reports", snapshot.docs[0].id);
-        // （必要に応じて displayDate を docData.date に上書きしてもOK）
-      } else {
-        // 🔓 新規記録として作成
-        const displayDate = formatDisplay(startDate);
-        targetDocRef = doc(db, "reports", getDocId(user.email, displayDate));
+      if (editChecked) {
+        const [hh, mm] = customTime.split(":").map(Number);
+        startDate.setHours(hh, mm, 0, 0);
+        mark = " (修正入力)";
       }
 
-      await setDoc(targetDocRef, {
-        email: user.email,
-        date: formatDisplay(startDate),
-        start: startTime,
-        timestamp: new Date().toISOString(),
-        edited: editChecked
-      });
+      const displayDate = formatDisplay(startDate);
+      const startTime = startDate.toTimeString().slice(0, 5) + mark;
 
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+          alert("ログイン情報がありません。ログインしてください。");
+          window.location.href = "login.html";
+          return;
+        }
+
+        const docRef = doc(db, "reports", getDocId(user.email, displayDate));
+        await setDoc(docRef, {
+          email: user.email,
+          date: displayDate,
+          start: startTime,
+          timestamp: new Date().toISOString(),
+          edited: editChecked
+        });
 
         document.body.innerHTML = `
           <h2>出勤打刻完了</h2>
@@ -294,7 +295,9 @@
           <button onclick="location.href='record.html'">OK</button>
         `;
       });
-    
+    }
+
+
 
 
 
