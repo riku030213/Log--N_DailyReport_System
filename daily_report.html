@@ -250,49 +250,43 @@
 
 
 //出勤送信
-    function submitStartReport() {
-      const editChecked = document.getElementById("editStartCheck").checked;
-      const customTime = document.getElementById("customStartTime").value;
-      const errorEl = document.getElementById("customStartError");
-      if (editChecked && !customTime) {
-        errorEl.style.display = "block";
+        onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        alert("ログイン情報がありません。ログインしてください。");
+        window.location.href = "login.html";
         return;
       }
-      errorEl.style.display = "none";
 
-      const now = new Date();
-      let startDate;
-      let mark = "";
+      // 🔽 ここに入れる！
+      const reportsRef = collection(db, "reports");
+      const q = query(
+        reportsRef,
+        where("email", "==", user.email),
+        where("start", "!=", null),
+        where("end", "==", null)
+      );
+      const snapshot = await getDocs(q);
+      let targetDocRef;
 
-     if (editChecked) {
-     const [hh, mm] = customTime.split(":").map(Number);
-     startDate = new Date(); // 現在の日時ベースで
-     startDate.setHours(hh, mm, 0, 0);
-     if (hh < 4) startDate.setDate(startDate.getDate() - 1); // 4時未満なら前日扱い
-     mark = " (修正入力)";
-     } else {
-     startDate = new Date(); // 通常打刻
-     if (startDate.getHours() < 4) startDate.setDate(startDate.getDate() - 1);
-     }
-      const displayDate = formatDisplay(startDate);
+      if (!snapshot.empty) {
+        // 🔒 すでに出勤していて退勤していない記録がある → そこに上書き
+        const docData = snapshot.docs[0].data();
+        targetDocRef = doc(db, "reports", snapshot.docs[0].id);
+        // （必要に応じて displayDate を docData.date に上書きしてもOK）
+      } else {
+        // 🔓 新規記録として作成
+        const displayDate = formatDisplay(startDate);
+        targetDocRef = doc(db, "reports", getDocId(user.email, displayDate));
+      }
 
-      const startTime = startDate.toTimeString().slice(0, 5) + mark;
+      await setDoc(targetDocRef, {
+        email: user.email,
+        date: formatDisplay(startDate),
+        start: startTime,
+        timestamp: new Date().toISOString(),
+        edited: editChecked
+      });
 
-      onAuthStateChanged(auth, async (user) => {
-        if (!user) {
-          alert("ログイン情報がありません。ログインしてください。");
-          window.location.href = "login.html";
-          return;
-        }
-
-        const docRef = doc(db, "reports", getDocId(user.email, displayDate));
-        await setDoc(docRef, {
-          email: user.email,
-          date: displayDate,
-          start: startTime,
-          timestamp: new Date().toISOString(),
-          edited: editChecked
-        });
 
         document.body.innerHTML = `
           <h2>出勤打刻完了</h2>
