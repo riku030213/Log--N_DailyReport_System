@@ -261,15 +261,19 @@
       errorEl.style.display = "none";
 
       const now = new Date();
-      let startDate = new Date();
+      let startDate;
       let mark = "";
 
-      if (editChecked) {
-       const [hh, mm] = customTime.split(":").map(Number);
-       startDate.setHours(hh, mm, 0, 0);
-       if (hh < 4) startDate.setDate(startDate.getDate() - 1); // 🔁 4時未満は前日扱い
-       mark = " (修正入力)";
-      }
+     if (editChecked) {
+     const [hh, mm] = customTime.split(":").map(Number);
+     startDate = new Date(); // 現在の日時ベースで
+     startDate.setHours(hh, mm, 0, 0);
+     if (hh < 4) startDate.setDate(startDate.getDate() - 1); // 4時未満なら前日扱い
+     mark = " (修正入力)";
+     } else {
+     startDate = new Date(); // 通常打刻
+     if (startDate.getHours() < 4) startDate.setDate(startDate.getDate() - 1);
+     }
       const displayDate = formatDisplay(startDate);
 
       const startTime = startDate.toTimeString().slice(0, 5) + mark;
