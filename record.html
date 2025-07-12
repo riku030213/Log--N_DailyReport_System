@@ -124,21 +124,25 @@
       return `${date.getFullYear()}年${String(date.getMonth() + 1).padStart(2, "0")}月${String(date.getDate()).padStart(2, "0")}日`;
     }
 
-    function calcWorkingHours(start, end, breakTime) {
-    let [sh, sm] = start.split(":").map(Number);
-    let [eh, em] = end.split(":").map(Number);
+   function calcWorkingHours(start, end, breakTime) {
+   // 🔽 「(修正入力)」などを除去
+   const cleanStart = start.replace(/\s*\(.*?\)/g, "");
+   const cleanEnd = end.replace(/\s*\(.*?\)/g, "");
 
-    // 🔽 4時未満は+24して28時制に
-    if (sh < 4) sh += 24;
-    if (eh < 4) eh += 24;
+   let [sh, sm] = cleanStart.split(":").map(Number);
+   let [eh, em] = cleanEnd.split(":").map(Number);
+
+   if (sh < 4) sh += 24;
+   if (eh < 4) eh += 24;
 
    const startMins = sh * 60 + sm;
    const endMins = eh * 60 + em;
    let diff = (endMins - startMins) / 60;
 
-    diff -= parseFloat(breakTime || 0);
-    return diff.toFixed(2);
+   diff -= parseFloat(breakTime || 0);
+   return diff.toFixed(2);
    }
+
 
 
     function formatDisplay(date) {
@@ -186,7 +190,7 @@
             <div class="date">${record.date} ${edited}</div>
             <div>出勤: ${displayStart}</div>
             <div>退勤: ${record.end || "<span class='missing-end'>未退勤</span>"}</div>
-            <div>休憩: ${record.break || "--"}時間</div>
+            <div>休憩: ${(record.break !== undefined ? record.break : "--")}時間</div>
             <div>体調: ${record.condition || "--"}</div>
             <div>実働: ${working}</div>
             ${record.tasks ? record.tasks.map(t => `・${t.project} / ${t.detail} / ${t.duration}h`).join("<br>") : ""}
