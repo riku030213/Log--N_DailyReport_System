@@ -265,12 +265,13 @@
       let mark = "";
 
       if (editChecked) {
-        const [hh, mm] = customTime.split(":").map(Number);
-        startDate.setHours(hh, mm, 0, 0);
-        mark = " (修正入力)";
+       const [hh, mm] = customTime.split(":").map(Number);
+       startDate.setHours(hh, mm, 0, 0);
+       if (hh < 4) startDate.setDate(startDate.getDate() - 1); // 🔁 4時未満は前日扱い
+       mark = " (修正入力)";
       }
-
       const displayDate = formatDisplay(startDate);
+
       const startTime = startDate.toTimeString().slice(0, 5) + mark;
 
       onAuthStateChanged(auth, async (user) => {
