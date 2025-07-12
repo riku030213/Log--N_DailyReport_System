@@ -39,6 +39,23 @@
       width: 100px;
     }
   </style>
+  <script>
+  function detectBrowser() {
+    const ua = navigator.userAgent;
+    if (ua.includes("Edg/")) return "Edge";
+    if (ua.includes("Chrome/")) return "Chrome";
+    if (ua.includes("Safari/") && !ua.includes("Chrome")) return "Safari";
+    if (ua.includes("Firefox/")) return "Firefox";
+    if (ua.includes("MSIE") || ua.includes("Trident/")) return "IE";
+    return "Unknown";
+  }
+
+  const browser = detectBrowser();
+  if (browser === "Edge") {
+    alert("このページは Google Chrome での利用を推奨します。\nMicrosoft Edge では一部機能が正常に動作しない可能性があります。");
+  }
+</script>
+
 </head>
 <body>
   <div class="form-section">
