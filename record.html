@@ -195,8 +195,7 @@
           displayStart = formatHourString(timeOnly) + displayStart.replace(timeOnly, "");
           }
 
-
-          // "時間" をダブって付けないように、この行を以下のように修正
+         
           const working = (record.start && record.end) ? calcWorkingHours(record.start, record.end, record.break) : "--";
 
 
