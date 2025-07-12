@@ -202,23 +202,26 @@
     let startDate = null;
 
     // Firestore から出勤時刻を1回だけ取得
-    onAuthStateChanged(auth, async (user) => {
-    if (!user) return;
-    const todayDisplay = formatDisplay(new Date());
+   onAuthStateChanged(auth, async (user) => {
+   if (!user) return;
+    const dNow = new Date();
+    if (dNow.getHours() < 4) dNow.setDate(dNow.getDate() - 1); // 28時制対応
+    const todayDisplay = formatDisplay(dNow);
     const docRef = doc(db, "reports", `${user.email}_${todayDisplay}`);
     const snap = await getDoc(docRef);
     if (snap.exists()) {
-    const data = snap.data();
-    if (data.start) {
-      const raw = data.start.replace("（修正入力）", "").trim();
-      const [hh, mm] = raw.split(":").map(Number);
-      const d = new Date();
-      d.setHours(hh, mm, 0, 0);
-      if (hh < 4) d.setDate(d.getDate() + 1); // 28時制 → 日付補正
-      startDate = d;
-      }
+      const data = snap.data();
+      if (data.start) {
+       const raw = data.start.replace("（修正入力）", "").trim();
+       const [hh, mm] = raw.split(":").map(Number);
+       const d = new Date();
+       d.setHours(hh, mm, 0, 0);
+       if (hh < 4) d.setDate(d.getDate() + 1); // 28時制 → 日付補正
+        startDate = d;
+     }
     }
-    });
+  });
+
 
 
 // 実動時間を一秒ごとに表示
