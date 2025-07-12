@@ -39,6 +39,8 @@
       width: 100px;
     }
   </style>
+
+   <!-- ブラウザ判定 -->
   <script>
   function detectBrowser() {
     const ua = navigator.userAgent;
@@ -58,6 +60,7 @@
 
 </head>
 <body>
+    <!-- フォーム表示部分 -->
   <div class="form-section">
     <div class="header-flex">
       <h2>日報入力フォーム</h2>
@@ -100,6 +103,9 @@
     <button id="endButton">退勤送信</button>
   </div>
 
+
+
+  <!-- Firebase SDKと初期化 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
     import { getFirestore, doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
@@ -119,11 +125,16 @@
     const db = getFirestore(app);
     const auth = getAuth(app);
 
+
+
+// 体調の変更時の操作
     function toggleNoteField() {
       const condition = document.getElementById('condition').value;
       document.getElementById('noteField').style.display = condition === '不調' ? 'block' : 'none';
     }
 
+
+// 出勤時刻修正入力チェック
     function toggleCustomStart() {
       const checked = document.getElementById('editStartCheck').checked;
       const input = document.getElementById('customStartTime');
@@ -135,6 +146,8 @@
       document.getElementById('customStartError').style.display = 'none';
     }
 
+
+// 作業項目を追加
     function addTaskEntry() {
       const container = document.getElementById('taskContainer');
       const div = document.createElement('div');
@@ -154,12 +167,16 @@
       });
     }
 
+
+// 時間表示用: 0.25刻みにまとめ、h表示    
     function formatHourSmart(value) {
     const rounded = Math.round(value * 4) / 4;
     return Number.isInteger(rounded) ? rounded.toFixed(0) + "時間" : rounded.toString() + "時間";
     }
 
 
+
+// 日時が4:00未満の場合は前日に繰り下げ
     function formatDisplay(date) {
       const adjusted = new Date(date);
       if (adjusted.getHours() < 4) {
@@ -172,6 +189,12 @@
     function getDocId(email, date) {
       return `${email}_${date}`;
     }
+
+
+
+
+
+
 //出勤時間をfirestorageから取得
     import { getDoc, doc } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
@@ -198,7 +221,8 @@
     }
     });
 
-    // 実働時間リアルタイム表示（startDate 利用）
+
+// 実動時間を一秒ごとに表示
     setInterval(() => {
     if (!startDate) return;
     const now = new Date();
@@ -218,7 +242,12 @@
     }, 1000);
 
 
-    //出勤送信
+
+
+
+
+
+//出勤送信
     function submitStartReport() {
       const editChecked = document.getElementById("editStartCheck").checked;
       const customTime = document.getElementById("customStartTime").value;
@@ -258,9 +287,6 @@
           edited: editChecked
         });
 
-       sessionStorage.setItem("startTime", startDate.toISOString());
-        sessionStorage.setItem("displayDate", displayDate); // ✅ 追加
-
         document.body.innerHTML = `
           <h2>出勤打刻完了</h2>
           <p>${startTime} に記録されました。</p>
@@ -268,98 +294,120 @@
         `;
       });
     }
-    //退勤送信
-    function submitEndReport() {
-      const startISO = sessionStorage.getItem("startTime");
-      if (!startISO) return alert("出勤情報が見つかりません.");
-
-      const start = new Date(startISO);
-      const now = new Date();
-
-      const displayDate = sessionStorage.getItem("displayDate") || formatDisplay(start);
-
-
-      const breakTime = parseFloat(document.getElementById("breakTime").value) || 0;
-      let hours = (endMins - startMins) / 60 - breakTime;
-      hours = Math.round(hours * 4) / 4; // 🔁 0.25刻みに丸める
-      document.getElementById("workingTime").textContent = formatHourSmart(hours);
-
-
-      let sh = start.getHours();
-      let eh = now.getHours();
-      if (sh < 4) sh += 24;
-      if (eh < 4) eh += 24;
-
-      const startMins = sh * 60 + start.getMinutes();
-      const endMins = eh * 60 + now.getMinutes();
-
-      let workingHours = (endMins - startMins) / 60 - breakTime;
-      workingHours = Math.round(workingHours * 4) / 4; // 🔁 0.25刻みに丸める
-      document.getElementById("workingTime").textContent = formatHourSmart(workingHours);
 
 
 
-      const taskDivs = document.querySelectorAll(".task-entry");
-      const tasks = [];
-      let total = 0;
-      let hasError = false;
 
-      taskDivs.forEach(div => {
-        const project = div.querySelector('input[name="project"]').value.trim();
-        const task = div.querySelector('textarea[name="task"]').value.trim();
 
-        let duration = parseFloat(div.querySelector('input[name="duration"]').value);
-        duration = Math.round(duration * 4) / 4;
 
-        const errorP = div.querySelector("p.error");
 
-        if (!project || !task || isNaN(duration)) {
-          errorP.textContent = "すべての項目を入力してください。";
-          errorP.style.display = "block";
-          hasError = true;
-        } else {
-          errorP.style.display = "none";
-          total += duration;
-          tasks.push({ project, detail: task, duration });
-        }
-      });
-
-      if (hasError) return;
-
-      if (Math.abs(total - workingHours) > 0.1) {
-        document.getElementById("workingTimeError").textContent =
-          `作業合計(${total.toFixed(1)}h)と実働(${workingHours.toFixed(1)}h)が一致しません。`;
-        document.getElementById("workingTimeError").style.display = "block";
-        return;
-      }
-
-      const condition = document.getElementById("condition").value;
-      if (!condition) {
-        document.getElementById("conditionError").style.display = "block";
-        return;
-      }
-
-      const note = document.getElementById("note").value;
-
-      onAuthStateChanged(auth, async (user) => {
-        if (!user) return alert("ログイン情報がありません。");
-
-        const docRef = doc(db, "reports", getDocId(user.email, displayDate));
-        await updateDoc(docRef, {
-          end: now.toTimeString().slice(0, 5),
-          break: breakTime,
-          condition,
-          note,
-          tasks,
-          updated: new Date().toISOString()
-        });
-
-        document.body.innerHTML = `
-          <h2>退勤打刻完了。お疲れさまでした！</h2>
-          <button onclick="location.href='record.html'">OK</button>
-        `;
-      });
+//退勤送信
+   async function submitEndReport() {
+  // 1. ログイン確認とユーザー取得
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      alert("ログイン情報がありません。");
+      return;
     }
+
+    const now = new Date();
+    const displayDate = formatDisplay(now); // 🔁 出勤と揃える（28時制対応）
+    const docRef = doc(db, "reports", getDocId(user.email, displayDate));
+    const snap = await getDoc(docRef);
+
+    if (!snap.exists()) {
+      alert("出勤記録が見つかりません。");
+      return;
+    }
+
+    const data = snap.data();
+    if (!data.start) {
+      alert("出勤時刻が未記録です。");
+      return;
+    }
+
+    // 2. 出勤時刻のパース（修正入力対応）
+    const raw = data.start.replace("（修正入力）", "").trim();
+    const [hh, mm] = raw.split(":").map(Number);
+    const start = new Date();
+    start.setHours(hh, mm, 0, 0);
+    if (hh < 4) start.setDate(start.getDate() + 1); // 🔁 28時制補正
+
+    // 3. 実働時間計算（0.25刻み）
+    const breakTime = parseFloat(document.getElementById("breakTime").value) || 0;
+
+    let sh = start.getHours();
+    let eh = now.getHours();
+    if (sh < 4) sh += 24;
+    if (eh < 4) eh += 24;
+
+    const startMins = sh * 60 + start.getMinutes();
+    const endMins = eh * 60 + now.getMinutes();
+
+    let workingHours = (endMins - startMins) / 60 - breakTime;
+    workingHours = Math.round(workingHours * 4) / 4;
+    document.getElementById("workingTime").textContent = formatHourSmart(workingHours);
+
+    // 4. 作業入力バリデーション＋合計作業時間確認
+    const taskDivs = document.querySelectorAll(".task-entry");
+    const tasks = [];
+    let total = 0;
+    let hasError = false;
+
+    taskDivs.forEach(div => {
+      const project = div.querySelector('input[name="project"]').value.trim();
+      const task = div.querySelector('textarea[name="task"]').value.trim();
+
+      let duration = parseFloat(div.querySelector('input[name="duration"]').value);
+      duration = Math.round(duration * 4) / 4;
+
+      const errorP = div.querySelector("p.error");
+
+      if (!project || !task || isNaN(duration)) {
+        errorP.textContent = "すべての項目を入力してください。";
+        errorP.style.display = "block";
+        hasError = true;
+      } else {
+        errorP.style.display = "none";
+        total += duration;
+        tasks.push({ project, detail: task, duration });
+      }
+    });
+
+    if (hasError) return;
+
+    if (Math.abs(total - workingHours) > 0.1) {
+      document.getElementById("workingTimeError").textContent =
+        `作業合計(${total.toFixed(1)}h)と実働(${workingHours.toFixed(1)}h)が一致しません。`;
+      document.getElementById("workingTimeError").style.display = "block";
+      return;
+    }
+
+    // 5. 体調チェックと退勤データ保存
+    const condition = document.getElementById("condition").value;
+    if (!condition) {
+      document.getElementById("conditionError").style.display = "block";
+      return;
+    }
+
+    const note = document.getElementById("note").value;
+
+    await updateDoc(docRef, {
+      end: now.toTimeString().slice(0, 5),
+      break: breakTime,
+      condition,
+      note,
+      tasks,
+      updated: new Date().toISOString()
+    });
+
+    document.body.innerHTML = `
+      <h2>退勤打刻完了。お疲れさまでした！</h2>
+      <button onclick="location.href='record.html'">OK</button>
+    `;
+  });
+}
+
 
     // イベントバインド（type=module対応）
     document.getElementById("condition").addEventListener("change", toggleNoteField);
