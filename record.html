@@ -65,7 +65,7 @@
     <select id="emailSelect"></select>
     月：
     <select id="monthSelect"></select>
-    <button onclick="downloadPDF()">📄 PDFとして保存</button>
+    <button onclick="downloadPDF()">📄 PDFとして保存(用紙サイズA3推奨)</button>
   </div>
 
   <div id="recordList" class="record-grid"></div>
@@ -124,6 +124,14 @@
       return `${date.getFullYear()}年${String(date.getMonth() + 1).padStart(2, "0")}月${String(date.getDate()).padStart(2, "0")}日`;
     }
 
+    
+    function formatHourSmart(value) {
+    const rounded = Math.round(value * 4) / 4;
+    return Number.isInteger(rounded) ? rounded.toFixed(0) + "時間" : rounded.toString() + "時間";
+    }
+
+
+
    function calcWorkingHours(start, end, breakTime) {
    // 🔽 「(修正入力)」などを除去
    const cleanStart = start.replace(/\s*\(.*?\)/g, "");
@@ -140,7 +148,10 @@
    let diff = (endMins - startMins) / 60;
 
    diff -= parseFloat(breakTime || 0);
-   return diff.toFixed(2);
+   diff = Math.round(diff * 4) / 4;
+   return formatHourSmart(diff);
+
+
    }
 
 
@@ -157,6 +168,7 @@
     const adjustedH = (h < 4) ? h + 24 : h;
     return `${adjustedH}:${String(m).padStart(2, "0")}`;
     }
+
 
     
     function renderRecords(records, selectedYear, selectedMonth) {
@@ -193,7 +205,8 @@
             <div>休憩: ${(record.break !== undefined ? record.break : "--")}時間</div>
             <div>体調: ${record.condition || "--"}</div>
             <div>実働: ${working}</div>
-            ${record.tasks ? record.tasks.map(t => `・${t.project} / ${t.detail} / ${t.duration}h`).join("<br>") : ""}
+            ${record.tasks ? record.tasks.map(t => `・${t.project} / ${t.detail} / ${formatHourSmart(t.duration)}`).join("<br>")
+           : ""}
             ${editHistory}
           `;
         } else {

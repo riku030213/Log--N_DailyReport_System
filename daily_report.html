@@ -154,6 +154,12 @@
       });
     }
 
+    function formatHourSmart(value) {
+    const rounded = Math.round(value * 4) / 4;
+    return Number.isInteger(rounded) ? rounded.toFixed(0) + "時間" : rounded.toString() + "時間";
+    }
+
+
     function formatDisplay(date) {
       const adjusted = new Date(date);
       if (adjusted.getHours() < 4) {
@@ -161,6 +167,7 @@
       }
       return `${adjusted.getFullYear()}年${String(adjusted.getMonth() + 1).padStart(2, "0")}月${String(adjusted.getDate()).padStart(2, "0")}日`;
     }
+  
 
     function getDocId(email, date) {
       return `${email}_${date}`;
@@ -183,9 +190,10 @@
       const breakTime = parseFloat(document.getElementById("breakTime").value) || 0;
       const hours = (endMins - startMins) / 60 - breakTime;
 
-      document.getElementById("workingTime").textContent = hours.toFixed(1) + "時間";
+      document.getElementById("workingTime").textContent = formatHourSmart(hours);
     }, 1000);
 
+    //出勤送信
     function submitStartReport() {
       const editChecked = document.getElementById("editStartCheck").checked;
       const customTime = document.getElementById("customStartTime").value;
@@ -235,7 +243,7 @@
         `;
       });
     }
-
+    //退勤送信
     function submitEndReport() {
       const startISO = sessionStorage.getItem("startTime");
       if (!startISO) return alert("出勤情報が見つかりません.");
@@ -247,6 +255,10 @@
 
 
       const breakTime = parseFloat(document.getElementById("breakTime").value) || 0;
+      let hours = (endMins - startMins) / 60 - breakTime;
+      hours = Math.round(hours * 4) / 4; // 🔁 0.25刻みに丸める
+      document.getElementById("workingTime").textContent = formatHourSmart(hours);
+
 
       let sh = start.getHours();
       let eh = now.getHours();
@@ -256,8 +268,11 @@
       const startMins = sh * 60 + start.getMinutes();
       const endMins = eh * 60 + now.getMinutes();
 
-      const workingHours = (endMins - startMins) / 60 - breakTime;
-      document.getElementById("workingTime").textContent = workingHours.toFixed(1) + "時間";
+      let workingHours = (endMins - startMins) / 60 - breakTime;
+      workingHours = Math.round(workingHours * 4) / 4; // 🔁 0.25刻みに丸める
+      document.getElementById("workingTime").textContent = formatHourSmart(workingHours);
+
+
 
       const taskDivs = document.querySelectorAll(".task-entry");
       const tasks = [];
@@ -268,7 +283,9 @@
         const project = div.querySelector('input[name="project"]').value.trim();
         const task = div.querySelector('textarea[name="task"]').value.trim();
 
-        const duration = parseFloat(div.querySelector('input[name="duration"]').value);
+        let duration = parseFloat(div.querySelector('input[name="duration"]').value);
+        duration = Math.round(duration * 4) / 4;
+
         const errorP = div.querySelector("p.error");
 
         if (!project || !task || isNaN(duration)) {
@@ -286,7 +303,7 @@
 
       if (Math.abs(total - workingHours) > 0.1) {
         document.getElementById("workingTimeError").textContent =
-          `作業合計(${total.toFixed(2)}h)と実働(${workingHours.toFixed(2)}h)が一致しません。`;
+          `作業合計(${total.toFixed(1)}h)と実働(${workingHours.toFixed(1)}h)が一致しません。`;
         document.getElementById("workingTimeError").style.display = "block";
         return;
       }
