@@ -172,26 +172,51 @@
     function getDocId(email, date) {
       return `${email}_${date}`;
     }
+//出勤時間をfirestorageから取得
+    import { getDoc, doc } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
 
+    // 上で宣言しておく（スコープ外で初期化）
+    let startDate = null;
+
+    // Firestore から出勤時刻を1回だけ取得
+    onAuthStateChanged(auth, async (user) => {
+    if (!user) return;
+    const todayDisplay = formatDisplay(new Date());
+    const docRef = doc(db, "reports", `${user.email}_${todayDisplay}`);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+    const data = snap.data();
+    if (data.start) {
+      const raw = data.start.replace("（修正入力）", "").trim();
+      const [hh, mm] = raw.split(":").map(Number);
+      const d = new Date();
+      d.setHours(hh, mm, 0, 0);
+      if (hh < 4) d.setDate(d.getDate() + 1); // 28時制 → 日付補正
+      startDate = d;
+      }
+    }
+    });
+
+    // 実働時間リアルタイム表示（startDate 利用）
     setInterval(() => {
-      const startISO = sessionStorage.getItem("startTime");
-      if (!startISO) return;
-      const start = new Date(startISO);
-      const now = new Date();
+    if (!startDate) return;
+    const now = new Date();
 
-      let sh = start.getHours();
-      let eh = now.getHours();
-      if (sh < 4) sh += 24;
-      if (eh < 4) eh += 24;
+    let sh = startDate.getHours();
+    let eh = now.getHours();
+    if (sh < 4) sh += 24;
+    if (eh < 4) eh += 24;
 
-      const startMins = sh * 60 + start.getMinutes();
-      const endMins = eh * 60 + now.getMinutes();
+    const startMins = sh * 60 + startDate.getMinutes();
+    const endMins = eh * 60 + now.getMinutes();
 
-      const breakTime = parseFloat(document.getElementById("breakTime").value) || 0;
-      const hours = (endMins - startMins) / 60 - breakTime;
+    const breakTime = parseFloat(document.getElementById("breakTime").value) || 0;
+    const hours = (endMins - startMins) / 60 - breakTime;
 
-      document.getElementById("workingTime").textContent = formatHourSmart(hours);
+    document.getElementById("workingTime").textContent = formatHourSmart(hours);
     }, 1000);
+
 
     //出勤送信
     function submitStartReport() {
