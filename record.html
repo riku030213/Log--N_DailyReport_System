@@ -55,6 +55,20 @@
       color: #007BFF;
       font-size: 0.9em;
     }
+    .note-toggle {
+      cursor: pointer;
+      color: #007BFF;
+      font-size: 0.9em;
+      margin-left: 5px;
+    }
+    .note-box {
+      font-size: 0.9em;
+      background: #f4f4f4;
+      padding: 6px;
+      margin-top: 4px;
+      border-left: 3px solid #007BFF;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -124,53 +138,44 @@
       return `${date.getFullYear()}年${String(date.getMonth() + 1).padStart(2, "0")}月${String(date.getDate()).padStart(2, "0")}日`;
     }
 
-
     function formatHourSmart(value) {
-    const rounded = Math.round(value * 4) / 4;
-    return Number.isInteger(rounded) ? rounded.toFixed(0) + "時間" : rounded.toString() + "時間";
+      const rounded = Math.round(value * 4) / 4;
+      return Number.isInteger(rounded) ? rounded.toFixed(0) + "時間" : rounded.toString() + "時間";
     }
 
+    function calcWorkingHours(start, end, breakTime) {
+      const cleanStart = start.replace(/\s*\(.*?\)/g, "");
+      const cleanEnd = end.replace(/\s*\(.*?\)/g, "");
 
+      let [sh, sm] = cleanStart.split(":").map(Number);
+      let [eh, em] = cleanEnd.split(":").map(Number);
 
-   function calcWorkingHours(start, end, breakTime) {
-   // 🔽 「(修正入力)」などを除去
-   const cleanStart = start.replace(/\s*\(.*?\)/g, "");
-   const cleanEnd = end.replace(/\s*\(.*?\)/g, "");
+      if (sh < 4) sh += 24;
+      if (eh < 4) eh += 24;
 
-   let [sh, sm] = cleanStart.split(":").map(Number);
-   let [eh, em] = cleanEnd.split(":").map(Number);
+      const startMins = sh * 60 + sm;
+      const endMins = eh * 60 + em;
+      let diff = (endMins - startMins) / 60;
 
-   if (sh < 4) sh += 24;
-   if (eh < 4) eh += 24;
-
-   const startMins = sh * 60 + sm;
-   const endMins = eh * 60 + em;
-   let diff = (endMins - startMins) / 60;
-
-   diff -= parseFloat(breakTime || 0);
-   diff = Math.round(diff * 4) / 4;
-   return formatHourSmart(diff);
-
-
-   }
-
-
+      diff -= parseFloat(breakTime || 0);
+      diff = Math.round(diff * 4) / 4;
+      return formatHourSmart(diff);
+    }
 
     function formatDisplay(date) {
-  const adjusted = new Date(date);
-    if (adjusted.getHours() < 4) {
-    adjusted.setDate(adjusted.getDate() - 1);
+      const adjusted = new Date(date);
+      if (adjusted.getHours() < 4) {
+        adjusted.setDate(adjusted.getDate() - 1);
+      }
+      return `${adjusted.getFullYear()}年${String(adjusted.getMonth() + 1).padStart(2, "0")}月${String(adjusted.getDate()).padStart(2, "0")}日`;
     }
-    return `${adjusted.getFullYear()}年${String(adjusted.getMonth() + 1).padStart(2, "0")}月${String(adjusted.getDate()).padStart(2, "0")}日`;
-    }
+
     function formatHourString(hhmmStr) {
-    const [h, m] = hhmmStr.split(":").map(Number);
-    const adjustedH = (h < 4) ? h + 24 : h;
-    return `${adjustedH}:${String(m).padStart(2, "0")}`;
+      const [h, m] = hhmmStr.split(":").map(Number);
+      const adjustedH = (h < 4) ? h + 24 : h;
+      return `${adjustedH}:${String(m).padStart(2, "0")}`;
     }
 
-
-    
     function renderRecords(records, selectedYear, selectedMonth) {
       recordList.innerHTML = "";
 
@@ -191,38 +196,38 @@
           let displayStart = record.start || "--";
           displayStart = displayStart.replace("（修正入力）", `<span class="mark">(修正入力)</span>`);
           if (displayStart !== "--") {
-          const timeOnly = record.start.split(" ")[0]; // → 時刻部分のみ抽出
-          displayStart = formatHourString(timeOnly) + displayStart.replace(timeOnly, "");
+            const timeOnly = record.start.split(" ")[0];
+            displayStart = formatHourString(timeOnly) + displayStart.replace(timeOnly, "");
           }
 
-         
           const working = (record.start && record.end) ? calcWorkingHours(record.start, record.end, record.break) : "--";
 
+          const noteToggle = (record.condition === "不調" && record.note)
+            ? `<span class="note-toggle" onclick="toggleNote(this)">▼</span><div class="note-box">備考: ${record.note.replace(/\\n/g, "<br>")}</div>`
+            : "";
 
           div.innerHTML = `
             <div class="date">${record.date} ${edited}</div>
             <div>出勤: ${displayStart}</div>
             <div>退勤: ${record.end || "<span class='missing-end'>未退勤</span>"}</div>
             <div>休憩: ${(record.break !== undefined ? record.break : "--")}時間</div>
-            <div>体調: ${record.condition || "--"}</div>
+            <div>体調: ${record.condition || "--"} ${noteToggle}</div>
             <div>実働: ${working}</div>
-            ${record.tasks ? record.tasks.map(t => `・${t.project} / ${t.detail} / ${formatHourSmart(t.duration)}`).join("<br>")
-           : ""}
+            ${record.tasks ? record.tasks.map(t => `・${t.project} / ${t.detail} / ${formatHourSmart(t.duration)}`).join("<br>") : ""}
             ${editHistory}
           `;
         } else {
-        const displayStart = "--";
-        const displayEnd = "--";
-        div.innerHTML = `
-        <div class="date">${dateStr}</div>
-        <div>出勤: ${displayStart}</div>
-        <div>退勤: ${displayEnd}</div>
-       <div>休憩: --時間</div>
-       <div>体調: --</div>
-       <div>実働: --</div>
-      `;
-      }
-
+          const displayStart = "--";
+          const displayEnd = "--";
+          div.innerHTML = `
+            <div class="date">${dateStr}</div>
+            <div>出勤: ${displayStart}</div>
+            <div>退勤: ${displayEnd}</div>
+            <div>休憩: --時間</div>
+            <div>体調: --</div>
+            <div>実働: --</div>
+          `;
+        }
 
         recordList.appendChild(div);
       }
@@ -246,12 +251,18 @@
       if (box) box.style.display = box.style.display === "none" ? "block" : "none";
     }
 
+    function toggleNote(el) {
+      const box = el.nextElementSibling;
+      if (!box) return;
+      box.style.display = box.style.display === "none" ? "block" : "none";
+      el.textContent = box.style.display === "block" ? "▲" : "▼";
+    }
+    window.toggleNote = toggleNote;
+
     function downloadPDF() {
       window.print();
     }
     window.downloadPDF = downloadPDF;
-
-
     window.toggleEditHistory = toggleEditHistory;
 
     getAvailableEmails().then(emails => {
