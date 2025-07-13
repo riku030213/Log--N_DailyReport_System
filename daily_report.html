@@ -267,7 +267,7 @@
       if (editChecked) {
         const [hh, mm] = customTime.split(":").map(Number);
         startDate.setHours(hh, mm, 0, 0);
-        mark = " (修正入力)";
+        mark = "（修正入力）";
       }
 
       const displayDate = formatDisplay(startDate);
@@ -329,8 +329,9 @@
     }
 
     // 2. 出勤時刻のパース（修正入力対応）
-    const raw = data.start.replace("（修正入力）", "").trim();
+    const raw = data.start.replace(/[（(]修正入力[）)]/, "").trim();  // ← 正規表現で全角/半角対応
     const [hh, mm] = raw.split(":").map(Number);
+
     const start = new Date();
     start.setHours(hh, mm, 0, 0);
     if (hh < 4) start.setDate(start.getDate() + 1); // 🔁 28時制補正
