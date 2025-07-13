@@ -199,12 +199,13 @@
           const edited = record.edited ? `<span class="edited" onclick="toggleEditHistory(this)">(編集済み)</span>` : "";
           const editHistory = record.editHistory ? `<div class='edit-history'>${record.editHistory.map(h => `変更前: ${h}`).join("<br>")}</div>` : "";
 
+          const rawStart = record.start.replace(/（修正入力）/, "").trim();
           let displayStart = record.start || "--";
           displayStart = displayStart.replace("（修正入力）", `<span class="mark">(修正入力)</span>`);
-          if (displayStart !== "--") {
-            const timeOnly = record.start.split(" ")[0];
-            displayStart = formatHourString(timeOnly) + displayStart.replace(timeOnly, "");
+          if (rawStart && rawStart.includes(":")) {
+            displayStart = formatHourString(rawStart) + displayStart.replace(rawStart, "");
           }
+
 
           const working = (record.start && record.end) ? calcWorkingHours(record.start, record.end, record.break) : "--";
 
