@@ -49,6 +49,9 @@
     }
     .controls {
       margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     a {
       text-decoration: none;
@@ -75,11 +78,14 @@
   <h2>日報記録一覧　<a href="daily_report.html">← 日報入力に戻る</a></h2>
 
   <div class="controls">
-    表示するユーザー：
-    <select id="emailSelect"></select>
-    月：
-    <select id="monthSelect"></select>
-    <button onclick="downloadPDF()">📄 PDFとして保存(用紙サイズA3推奨)</button>
+    <div>
+      表示するユーザー：
+      <select id="emailSelect"></select>
+      月：
+      <select id="monthSelect"></select>
+      <button onclick="downloadPDF()">📄 PDFとして保存(用紙サイズA3推奨)</button>
+    </div>
+    <div id="monthlyTotal" style="text-align: right; font-weight: bold; white-space: nowrap;"></div>
   </div>
 
   <div id="recordList" class="record-grid"></div>
@@ -147,8 +153,8 @@
       const cleanStart = start.replace(/\s*\(.*?\)/g, "");
       const cleanEnd = end.replace(/\s*\(.*?\)/g, "");
 
-      let [sh, sm] = cleanStart.split(":").map(Number);
-      let [eh, em] = cleanEnd.split(":").map(Number);
+      let [sh, sm] = cleanStart.split(":"").map(Number);
+      let [eh, em] = cleanEnd.split(":"").map(Number);
 
       if (sh < 4) sh += 24;
       if (eh < 4) eh += 24;
@@ -171,7 +177,7 @@
     }
 
     function formatHourString(hhmmStr) {
-      const [h, m] = hhmmStr.split(":").map(Number);
+      const [h, m] = hhmmStr.split(":"").map(Number);
       const adjustedH = (h < 4) ? h + 24 : h;
       return `${adjustedH}:${String(m).padStart(2, "0")}`;
     }
@@ -203,7 +209,7 @@
           const working = (record.start && record.end) ? calcWorkingHours(record.start, record.end, record.break) : "--";
 
           const noteToggle = (record.condition === "不調" && record.note)
-            ? `<span class="note-toggle" onclick="toggleNote(this)">▼</span><div class="note-box">備考: ${record.note.replace(/\\n/g, "<br>")}</div>`
+            ? `<span class="note-toggle" onclick="toggleNote(this)">▼</span><div class="note-box">備考: ${record.note.replace(/\n/g, "<br>")}</div>`
             : "";
 
           div.innerHTML = `
@@ -231,6 +237,33 @@
 
         recordList.appendChild(div);
       }
+
+      // 月間実働時間集計
+      let totalHours = 0;
+      records.forEach(r => {
+        if (r.email !== emailSelect.value) return;
+        if (!r.start || !r.end) return;
+
+        const cleanStart = r.start.replace(/\s*\(.*?\)/g, "");
+        const cleanEnd = r.end.replace(/\s*\(.*?\)/g, "");
+        const [sh, sm] = cleanStart.split(":"").map(Number);
+        const [eh, em] = cleanEnd.split(":"").map(Number);
+
+        let start = new Date();
+        start.setHours(sh < 4 ? sh + 24 : sh, sm);
+
+        let end = new Date();
+        end.setHours(eh < 4 ? eh + 24 : eh, em);
+
+        let diff = (end - start) / 1000 / 60 / 60;
+        diff -= parseFloat(r.break || 0);
+        if (!isNaN(diff)) {
+          totalHours += Math.round(diff * 4) / 4;
+        }
+      });
+
+      document.getElementById("monthlyTotal").textContent =
+        `${selectedMonth}月 月間稼働時間集計：${Math.round(totalHours * 4) / 4}時間`;
     }
 
     function loadAndRender() {
