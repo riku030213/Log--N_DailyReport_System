@@ -72,6 +72,19 @@
       border-left: 3px solid #007BFF;
       display: none;
     }
+    @media print {
+      body {
+        zoom: 65%;
+        margin: 0;
+      }
+      .controls {
+        page-break-inside: avoid;
+      }
+      .record-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -84,6 +97,7 @@
       月：
       <select id="monthSelect"></select>
       <button onclick="downloadPDF()">📄 PDFとして保存(用紙サイズA3推奨)</button>
+      <button onclick="goToEditYesterday()" style="margin-left: 10px;">📝 打刻修正</button>
     </div>
     <div id="monthlyTotal" style="text-align: right; font-weight: bold; white-space: nowrap;"></div>
   </div>
@@ -145,7 +159,6 @@
     }
 
     const todayStr = formatDateKey(new Date());
-
 
     function formatHourSmart(value) {
       const rounded = Math.round(value * 4) / 4;
@@ -209,7 +222,6 @@
             displayStart = formatHourString(rawStart) + displayStart.replace(rawStart, "");
           }
 
-
           const working = (record.start && record.end) ? calcWorkingHours(record.start, record.end, record.break) : "--";
 
           const noteToggle = (record.condition === "不調" && record.note)
@@ -233,12 +245,10 @@
             ${editHistory}
           `;
         } else {
-          const displayStart = "--";
-          const displayEnd = "--";
           div.innerHTML = `
             <div class="date">${dateStr}</div>
-            <div>出勤: ${displayStart}</div>
-            <div>退勤: ${displayEnd}</div>
+            <div>出勤: --</div>
+            <div>退勤: --</div>
             <div>休憩: --時間</div>
             <div>体調: --</div>
             <div>実働: --</div>
@@ -248,7 +258,6 @@
         recordList.appendChild(div);
       }
 
-      // 月間実働時間集計
       let totalHours = 0;
       records.forEach(r => {
         if (r.email !== emailSelect.value) return;
@@ -307,6 +316,17 @@
     }
     window.downloadPDF = downloadPDF;
     window.toggleEditHistory = toggleEditHistory;
+
+    function goToEditYesterday() {
+      const now = new Date();
+      now.setDate(now.getDate() - 1);
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const formatted = `${yyyy}年${mm}月${dd}日`;
+      window.location.href = `edit_report.html?date=${formatted}`;
+    }
+    window.goToEditYesterday = goToEditYesterday;
 
     getAvailableEmails().then(emails => {
       emails.forEach(email => {
