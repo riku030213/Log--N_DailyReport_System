@@ -214,7 +214,10 @@
             : "";
 
           div.innerHTML = `
-            <div class="date">${record.date} ${edited}</div>
+            <div class="date">
+            <a href="edit_report.html?date=${record.date}">${record.date}</a> ${edited}
+            </div>
+
             <div>出勤: ${displayStart}</div>
             <div>退勤: ${record.end || "<span class='missing-end'>未退勤</span>"}</div>
             <div>休憩: ${(record.break !== undefined ? record.break : "--")}時間</div>
