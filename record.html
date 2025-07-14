@@ -144,6 +144,13 @@
       return `${date.getFullYear()}年${String(date.getMonth() + 1).padStart(2, "0")}月${String(date.getDate()).padStart(2, "0")}日`;
     }
 
+    function formatDateKey(date) {
+    return `${date.getFullYear()}年${String(date.getMonth() + 1).padStart(2, "0")}月${String(date.getDate()).padStart(2, "0")}日`;
+    }
+
+    const todayStr = formatDateKey(new Date());
+
+
     function formatHourSmart(value) {
       const rounded = Math.round(value * 4) / 4;
       return Number.isInteger(rounded) ? rounded.toFixed(0) + "時間" : rounded.toString() + "時間";
@@ -213,11 +220,14 @@
             ? `<span class="note-toggle" onclick="toggleNote(this)">▼</span><div class="note-box">備考: ${record.note.replace(/\n/g, "<br>")}</div>`
             : "";
 
-          div.innerHTML = `
-            <div class="date">
-            <a href="edit_report.html?date=${record.date}">${record.date}</a> ${edited}
-            </div>
+          const isToday = dateStr === todayStr;
 
+          const dateHTML = isToday
+            ? `<div class="date"><span style="color:gray; cursor: not-allowed;" onclick="alert('今日の日付は編集できません')">${dateStr}</span> ${edited}</div>`
+            : `<div class="date"><a href="edit_report.html?date=${dateStr}">${dateStr}</a> ${edited}</div>`;
+
+          div.innerHTML = `
+            ${dateHTML}
             <div>出勤: ${displayStart}</div>
             <div>退勤: ${record.end || "<span class='missing-end'>未退勤</span>"}</div>
             <div>休憩: ${(record.break !== undefined ? record.break : "--")}時間</div>
