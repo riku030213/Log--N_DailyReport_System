@@ -5,12 +5,8 @@
   <title>日報編集</title>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-    import {
-      getFirestore, doc, getDoc, setDoc
-    } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
-    import {
-      getAuth, onAuthStateChanged
-    } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyC_ZkD7YXmyfmAYvLuFm_3AC1Le_KlMlSg",
@@ -141,9 +137,20 @@
     document.getElementById("endTime").addEventListener("input", updateLiveWorkHour);
     document.getElementById("breakTime").addEventListener("input", updateLiveWorkHour);
 
+    document.getElementById("addTaskButton").addEventListener("click", () => {
+      const container = document.getElementById("taskContainer");
+      const div = document.createElement("div");
+      div.className = "task-entry";
+      div.innerHTML = `
+        <label>案件名:</label><input type="text" name="project"><br>
+        <label>作業内容:</label><textarea name="task" rows="1" style="width: 100%; resize: none; overflow: hidden;"></textarea><br>
+        <label>作業時間（h）:</label><input type="number" name="duration" step="0.1" min="0">
+      `;
+      container.appendChild(div);
+    });
+
     document.getElementById("saveButton").addEventListener("click", async () => {
       if (!currentUserEmail) return alert("ログイン状態を確認してください。");
-
       const dateDisplay = document.getElementById("editDate").value;
       const docId = `${currentUserEmail}_${dateDisplay}`;
       const docRef = doc(db, "reports", docId);
@@ -193,7 +200,7 @@
   </script>
 </head>
 <body>
-  <h2>日報編集画面</h2>
+  <h2>日報編集</h2>
   編集日付：
   <select id="editDate"></select>
   <br><br>
@@ -204,24 +211,26 @@
   <input type="time" id="endTime"><br>
   <label>休憩時間（h）:</label>
   <input type="number" id="breakTime" step="0.1" min="0"><br>
-  <div id="liveWorkResult">実働時間: --</div>
-  <br>
 
-  <label>体調:</label>
+  <label for="condition">体調:</label>
   <select id="condition">
-    <option value=\"\">--</option>
-    <option value=\"好調\">好調</option>
-    <option value=\"不調\">不調</option>
+    <option value="">-- 未入力 --</option>
+    <option value="好調">好調</option>
+    <option value="普通">普通</option>
+    <option value="不調">不調</option>
   </select>
-  <br>
-  <div id="noteField" style="display:none;">
-    <label>備考:</label><br>
-    <textarea id="note" rows="2" style="width: 100%;"></textarea>
+  <p id="conditionError" class="error" style="display: none;">体調を選択してください。</p><br>
+
+  <div id="noteField" style="display:none">
+    <label for="note">備考:</label>
+    <textarea id="note" rows="2" style="width: 100%; resize: vertical;"></textarea><br><br>
   </div>
 
-  <h3>作業記録</h3>
+  <h3>作業詳細</h3>
   <div id="taskContainer"></div>
-  <br>
+  <button type="button" id="addTaskButton">＋ 作業を追加</button><br><br>
+  <div id="liveWorkResult">実働時間: --</div>
+
   <button id="saveButton">編集を保存</button>
 </body>
 </html>
