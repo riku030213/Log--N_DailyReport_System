@@ -86,7 +86,7 @@
       const y = today.getFullYear();
       const m = today.getMonth();
       const d = today.getDate();
-      for (let i = 1; i <= d; i++) {
+      for (let i = 1; i < d; i++) {
         const date = new Date(y, m, i);
         const label = formatDateDisplay(date);
         const opt = document.createElement("option");
